@@ -39,6 +39,7 @@ export function EdgeHandles({
   return (
     <>
       {(Object.keys(LABEL) as Edge[]).map((edge) => (
+        open.bottom && edge === "bottom" ? null :
         <div
           key={edge}
           className={[

@@ -13,6 +13,7 @@ import type { AddressOverlayCloseReason } from "../../shared/address-overlay";
  * than tab switching, so the boundary is asserted per channel.
  */
 export function registerIpc(runtime: BrowserRuntime): void {
+  const browserSubscriptions = new Map<WebContents, () => void>();
   const trusted = (sender: WebContents): boolean =>
     sender === runtime.controller?.shell.webContents;
   const overlay = (sender: WebContents): boolean =>
@@ -37,11 +38,21 @@ export function registerIpc(runtime: BrowserRuntime): void {
 
   ipcMain.on("browser:subscribe", (event) => {
     if (!trusted(event.sender)) return;
+    if (browserSubscriptions.has(event.sender)) return;
     const off = runtime.subscribe((browserEvent) => {
       if (!event.sender.isDestroyed())
         event.sender.send("browser:event", browserEvent);
     });
-    event.sender.once("destroyed", off);
+    browserSubscriptions.set(event.sender, off);
+    event.sender.once("destroyed", () => {
+      browserSubscriptions.delete(event.sender);
+      off();
+    });
+  });
+  ipcMain.on("browser:unsubscribe", (event) => {
+    if (!trusted(event.sender)) return;
+    browserSubscriptions.get(event.sender)?.();
+    browserSubscriptions.delete(event.sender);
   });
 
   ipcMain.on("shell:layout", (event, snapshot: LayoutSnapshot) => {

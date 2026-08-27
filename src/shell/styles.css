@@ -651,8 +651,10 @@ button {
 }
 
 .edge-bottom {
-  left: 8px;
-  right: 8px;
+  /* The content area owns this edge; the rail/context gutters must retain
+     their own surface colour. Runtime-open handles are not rendered. */
+  left: var(--rail-width, 8px);
+  right: var(--context-gutter, 8px);
   bottom: 0;
   height: 8px;
 }
@@ -994,6 +996,34 @@ button {
   display: flex;
   gap: 10px;
   padding: 3px 0;
+}
+
+.console-toolbar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  position: sticky;
+  top: 0;
+  padding: 4px 0 8px;
+  background: var(--bg-panel);
+  z-index: 1;
+}
+
+.console-toolbar select,
+.console-toolbar button {
+  color: var(--text-dim);
+  background: var(--bg-chrome);
+  border: 1px solid var(--line);
+  font: inherit;
+  font-size: 11px;
+  padding: 3px 6px;
+}
+
+.console-time,
+.console-count {
+  flex: 0 0 auto;
+  color: var(--text-faint);
+  font-size: 10px;
 }
 
 .console-glyph {

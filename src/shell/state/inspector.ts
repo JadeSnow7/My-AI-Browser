@@ -21,6 +21,8 @@ export interface ConsoleEntry {
   level: "error" | "warning" | "info" | "log";
   text: string;
   source: string;
+  timestamp: number;
+  count: number;
 }
 
 export interface NetworkEntry {
@@ -64,16 +66,28 @@ interface LoadingFinished {
 const frameSource = (call: RuntimeConsoleCall): string => {
   const frame = call.stackTrace?.callFrames?.[0];
   if (!frame?.url) return "";
-  const file = frame.url.split("/").pop() || frame.url;
-  return frame.lineNumber === undefined ? file : `${file}:${frame.lineNumber + 1}`;
+  return frame.lineNumber === undefined ? frame.url : `${frame.url}:${frame.lineNumber + 1}`;
 };
 
-const argText = (call: RuntimeConsoleCall): string =>
-  (call.args ?? [])
-    .map((arg) =>
-      arg.value !== undefined ? String(arg.value) : (arg.description ?? ""),
-    )
-    .join(" ");
+/** Chrome's console formatter, intentionally text-only: `%c` consumes CSS but
+ * never applies page-provided styles to the trusted Shell. */
+export function formatConsoleArgs(args: Array<{ value?: unknown; description?: string }>): string {
+  const values = args.map((arg) => arg.value !== undefined ? String(arg.value) : (arg.description ?? ""));
+  const first = values.shift() ?? "";
+  let index = 0;
+  const formatted = first.replace(/%([%sdifjoOc])/g, (token, kind: string) => {
+    if (kind === "%") return "%";
+    if (kind === "c") { index++; return ""; }
+    const value = values[index++];
+    if (value === undefined) return token;
+    return value;
+  });
+  return [formatted, ...values.slice(index)].filter(Boolean).join(" ");
+}
+
+export function parseConsoleCall(call: RuntimeConsoleCall, timestamp = Date.now()): Omit<ConsoleEntry, "id" | "count"> {
+  return { level: levelOf(call.type), text: formatConsoleArgs(call.args ?? []), source: frameSource(call), timestamp };
+}
 
 const levelOf = (type: string | undefined): ConsoleEntry["level"] =>
   type === "error" || type === "assert"
@@ -121,7 +135,7 @@ function useDomains(
 export function useConsoleFeed(
   tabId: string | null,
   active: boolean,
-): ConsoleEntry[] {
+): { entries: ConsoleEntry[]; clear: () => void } {
   const [entries, setEntries] = useState<ConsoleEntry[]>([]);
   useDomains(tabId, ["Runtime", "Log"], active);
 
@@ -132,19 +146,25 @@ export function useConsoleFeed(
   useEffect(() => {
     if (!tabId || !active) return;
     let next = 0;
-    const push = (entry: Omit<ConsoleEntry, "id">): void =>
-      setEntries((current) =>
-        [...current, { ...entry, id: next++ }].slice(-LIMIT),
-      );
+    const push = (entry: Omit<ConsoleEntry, "id" | "count">): void =>
+      setEntries((current) => {
+        const previous = current[current.length - 1];
+        if (previous && previous.level === entry.level && previous.source === entry.source && previous.text === entry.text) {
+          return [...current.slice(0, -1), { ...previous, count: previous.count + 1, timestamp: entry.timestamp }];
+        }
+        return [...current, { ...entry, id: next++, count: 1 }].slice(-LIMIT);
+    });
 
     return window.browser.subscribe((event: BrowserEvent) => {
+      if (event.type === "navigation.started") {
+        if (event.tabId === tabId) setEntries([]);
+        return;
+      }
       if (event.type !== "cdp.event" || event.tabId !== tabId) return;
       if (event.method === "Runtime.consoleAPICalled") {
         const call = event.params as RuntimeConsoleCall;
         push({
-          level: levelOf(call.type),
-          text: argText(call),
-          source: frameSource(call),
+          ...parseConsoleCall(call),
         });
       } else if (event.method === "Log.entryAdded") {
         const { entry } = event.params as LogEntryAdded;
@@ -152,13 +172,14 @@ export function useConsoleFeed(
         push({
           level: levelOf(entry.level),
           text: entry.text ?? "",
-          source: entry.url ? shortName(entry.url) : "",
+          source: entry.url ?? "",
+          timestamp: Date.now(),
         });
       }
     });
   }, [tabId, active]);
 
-  return entries;
+  return { entries, clear: () => setEntries([]) };
 }
 
 export function useNetworkFeed(

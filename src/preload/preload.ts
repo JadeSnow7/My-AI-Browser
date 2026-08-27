@@ -11,6 +11,7 @@ import type {
 } from "../shared/types";
 import type { LayoutSnapshot } from "../shared/layout";
 import type { AddressOverlayEvent, AddressOverlayModel, AddressOverlayCloseReason } from "../shared/address-overlay";
+import { createFanout } from "../shared/fanout";
 
 const platform = (process.platform === "win32"
   ? "win32"
@@ -30,19 +31,26 @@ const platformInfo: PlatformInfo = {
   trafficLightInset: platform === "darwin" ? 78 : 0,
 };
 
+let browserIpcListener: ((_event: Electron.IpcRendererEvent, event: BrowserEvent) => void) | null = null;
+const browserFanout = createFanout<BrowserEvent>(
+  () => {
+    browserIpcListener = (_event: Electron.IpcRendererEvent, event: BrowserEvent) => browserFanout.publish(event);
+    ipcRenderer.on("browser:event", browserIpcListener);
+    ipcRenderer.send("browser:subscribe");
+  },
+  () => {
+    if (!browserIpcListener) return;
+    ipcRenderer.removeListener("browser:event", browserIpcListener);
+    browserIpcListener = null;
+    ipcRenderer.send("browser:unsubscribe");
+  },
+);
+
 const browser: BrowserBridge = {
   command: (command: BrowserCommand) =>
     ipcRenderer.invoke("browser:command", command),
   getState: () => ipcRenderer.invoke("browser:state"),
-  subscribe: (fn: (event: BrowserEvent) => void) => {
-    const listener = (_: Electron.IpcRendererEvent, event: BrowserEvent) =>
-      fn(event);
-    ipcRenderer.on("browser:event", listener);
-    ipcRenderer.send("browser:subscribe");
-    return () => {
-      ipcRenderer.removeListener("browser:event", listener);
-    };
-  },
+  subscribe: (fn: (event: BrowserEvent) => void) => browserFanout.subscribe(fn),
   onUi: (fn: (signal: UiSignal) => void) => {
     const listener = (_: Electron.IpcRendererEvent, signal: UiSignal) =>
       fn(signal);

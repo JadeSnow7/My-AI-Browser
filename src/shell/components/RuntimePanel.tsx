@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo, useState } from "react";
 import { RUNTIME_TABS, type RuntimeTab } from "../state/panels";
 import { useNetworkFeed, type ConsoleEntry } from "../state/inspector";
 import type { AgentRun, AgentStep } from "../state/agent";
@@ -24,6 +24,7 @@ export function RuntimePanel({
   session,
   run,
   consoleEntries,
+  onClearConsole,
 }: {
   tab: RuntimeTab;
   onTab: (tab: RuntimeTab) => void;
@@ -37,6 +38,7 @@ export function RuntimePanel({
   run: AgentRun | null;
   /** Owned by App: the presence badge needs the same feed, panel open or not. */
   consoleEntries: ConsoleEntry[];
+  onClearConsole: () => void;
 }): React.JSX.Element {
   return (
     <section className="runtime-panel" aria-label="Runtime panel">
@@ -65,7 +67,7 @@ export function RuntimePanel({
 
       <div className="panel-body mono">
         {tab === "Terminal" && <TerminalView />}
-        {tab === "Console" && <ConsoleView entries={consoleEntries} />}
+        {tab === "Console" && <ConsoleView entries={consoleEntries} onClear={onClearConsole} />}
         {tab === "Network" && <NetworkView tabId={tabId} />}
         {tab === "Agent Log" && <AgentLogView run={run} />}
         {tab === "Runtime" && (
@@ -111,9 +113,13 @@ function TerminalView(): React.JSX.Element {
 
 function ConsoleView({
   entries,
+  onClear,
 }: {
   entries: ConsoleEntry[];
+  onClear: () => void;
 }): React.JSX.Element {
+  const [filter, setFilter] = useState<ConsoleEntry["level"] | "all">("all");
+  const visible = useMemo(() => filter === "all" ? entries : entries.filter((entry) => entry.level === filter), [entries, filter]);
   if (entries.length === 0)
     return (
       <Unwired
@@ -123,13 +129,23 @@ function ConsoleView({
     );
   return (
     <>
-      {entries.map((entry) => (
+      <div className="console-toolbar">
+        <select aria-label="Filter console level" value={filter} onChange={(event) => setFilter(event.target.value as typeof filter)}>
+          <option value="all">All</option><option value="error">Errors</option><option value="warning">Warnings</option><option value="info">Info</option><option value="log">Logs</option>
+        </select>
+        <button onClick={onClear}>Clear</button>
+      </div>
+      {visible.map((entry) => (
         <div key={entry.id} className={`console-row ${entry.level}`}>
           <span className="console-glyph">
             {entry.level === "error" ? "✗" : entry.level === "warning" ? "▲" : "›"}
           </span>
-          <span className="console-text">{entry.text}</span>
+          {entry.text.length > 240 ? (
+            <details className="console-text"><summary>{entry.text.slice(0, 240)}…</summary><div>{entry.text}</div></details>
+          ) : <span className="console-text">{entry.text}</span>}
           <span className="console-source">{entry.source}</span>
+          <time className="console-time">{new Date(entry.timestamp).toLocaleTimeString()}</time>
+          {entry.count > 1 && <span className="console-count">×{entry.count}</span>}
         </div>
       ))}
     </>

@@ -164,10 +164,11 @@ export function App(): React.JSX.Element {
    * changes. `PageSession` reference-counts the domains and already handles
    * DevTools stealing the target, so the cost is one attachment, not N.
    */
-  const consoleEntries = useConsoleFeed(active?.id ?? null, true);
+  const consoleFeed = useConsoleFeed(active?.id ?? null, true);
+  const consoleEntries = consoleFeed.entries;
   const consoleErrors =
     channelErrors +
-    consoleEntries.filter((entry) => entry.level === "error").length;
+    consoleEntries.reduce((total, entry) => total + (entry.level === "error" ? entry.count : 0), 0);
 
   const sidebar: SidebarState = railOpen ? "open" : "hidden";
 
@@ -605,7 +606,11 @@ export function App(): React.JSX.Element {
     <LayoutProvider order={paneOrder} shellOnTop={raised} addressOverlay={overlayPlacement}>
       <div
         className={dragging ? `shell dragging-${dragging}` : "shell"}
-        style={{ "--page-tint": tint.background } as React.CSSProperties}
+        style={{
+          "--page-tint": tint.background,
+          "--rail-width": `${railWidth}px`,
+          "--context-gutter": `${contextOpen ? contextWidth : 8}px`,
+        } as React.CSSProperties}
       >
         {/* The strip spans the whole window and the rail hangs below it. The
             traffic lights are drawn by the OS at the window's top-left corner,
@@ -697,6 +702,7 @@ export function App(): React.JSX.Element {
                     session={active ? sessions[active.id] : undefined}
                     run={run}
                     consoleEntries={consoleEntries}
+                    onClearConsole={consoleFeed.clear}
                     onTab={(tab: RuntimeTab) =>
                       setPanels((p) => ({ ...p, runtimeTab: tab }))
                     }

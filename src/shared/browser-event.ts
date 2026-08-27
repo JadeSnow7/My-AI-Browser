@@ -2,6 +2,8 @@ import type { BrowserTab } from "./types";
 import type { CdpSessionState } from "./cdp";
 
 export type BrowserEvent =
+  /** A new document navigation began; in-page history/hash changes do not emit this. */
+  | { type: "navigation.started"; tabId: string }
   | { type: "tabs.changed"; tabs: BrowserTab[] }
   | { type: "tab.updated"; tab: BrowserTab }
   | { type: "tab.crashed"; tabId: string }

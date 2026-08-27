@@ -16,6 +16,12 @@ const normalize = (raw: string): string => normalizeNavigationInput(raw);
 /** Best-effort scroll capture; a slow or hung page must not block a discard. */
 const SCROLL_CAPTURE_TIMEOUT_MS = 200;
 
+/** Only a new top-level document should reset the Runtime console. */
+export const isMainDocumentNavigation = (
+  isInPlace: boolean,
+  isMainFrame: boolean,
+): boolean => isMainFrame && !isInPlace;
+
 export class TabManager {
   private tabs = new Map<string, InternalBrowserTab>();
   private order: string[] = [];
@@ -105,6 +111,15 @@ export class TabManager {
       tab.state = "loading";
       this.update(tab);
     };
+    const startNavigation = (
+      _event: unknown,
+      _url: string,
+      isInPlace: boolean,
+      isMainFrame: boolean,
+    ): void => {
+      if (isMainDocumentNavigation(isInPlace, isMainFrame))
+        this.emit({ type: "navigation.started", tabId: tab.id });
+    };
     const stopLoading = (): void => {
       tab.state = "ready";
       this.update(tab);
@@ -130,6 +145,7 @@ export class TabManager {
     const finished = (): void => void this.restoreScroll(tab);
 
     wc.on("did-start-loading", startLoading);
+    wc.on("did-start-navigation", startNavigation);
     wc.on("did-stop-loading", stopLoading);
     wc.on("did-navigate", navigated);
     wc.on("did-navigate-in-page", navigatedInPage);
@@ -143,6 +159,7 @@ export class TabManager {
 
     tab.detachListeners = () => {
       wc.removeListener("did-start-loading", startLoading);
+      wc.removeListener("did-start-navigation", startNavigation);
       wc.removeListener("did-stop-loading", stopLoading);
       wc.removeListener("did-navigate", navigated);
       wc.removeListener("did-navigate-in-page", navigatedInPage);
