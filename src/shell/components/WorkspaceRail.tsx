@@ -27,6 +27,7 @@ export function WorkspaceRail({
   onActivate,
   onSelectTask,
   onNewTask,
+  onClose,
 }: {
   groups: TaskGroup[];
   /** Degraded icon strip, used when the window cannot afford the full rail. */
@@ -36,14 +37,32 @@ export function WorkspaceRail({
   onActivate: (id: string) => void;
   onSelectTask: (id: string) => void;
   onNewTask: () => void;
+  onClose: () => void;
 }): React.JSX.Element {
-  if (compact) return <CompactRail groups={groups} onActivate={onActivate} onNewTask={onNewTask} />;
+  if (compact)
+    return (
+      <CompactRail
+        groups={groups}
+        onActivate={onActivate}
+        onNewTask={onNewTask}
+      />
+    );
 
   return (
     <nav className="rail-list" aria-label="Workspace">
       <header className="rail-head">
         <span>Workspace</span>
         <span className="rail-key">⌘B</span>
+        {/* The other two panels have always had one. The rail not having a
+            close button made it the only surface you could open by pointer and
+            not close by pointer. */}
+        <button
+          className="panel-close"
+          aria-label="Close workspace rail"
+          onClick={onClose}
+        >
+          ×
+        </button>
       </header>
 
       <div className="rail-scroll">

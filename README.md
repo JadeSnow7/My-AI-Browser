@@ -153,8 +153,9 @@ pure policy functions rather than the components: `clampPanels` (space
 pressure and the measured table above), `selectForHibernation` (the count-plus-
 idle policy and everything it must spare), `intentOf` / `buildResults` (intent
 derivation and the fixed group order the Universal Shell promises), and
-`groupTabs` / `pruneWorkspace`. These are the places where a refactor can
-quietly change behaviour without breaking a type.
+`groupTabs` / `pruneWorkspace`, and `tintFor` (the top strip's colour clamps
+and the light/dark decision). These are the places where a refactor can quietly
+change behaviour without breaking a type.
 
 ⌘/Ctrl + `K` Universal Shell · `L` Universal Shell prefilled with this URL ·
 `B` workspace rail · `J` runtime panel · `I` context panel · `\` split view ·
@@ -170,14 +171,48 @@ discovery instead:
   always present, naming the panel and its shortcut on hover. They are the only
   permanent chrome in the default state, and they are why the layout keeps
   `EDGE_GUTTER` uncovered on an edge whose panel is closed — pages composite
-  above the Shell, so a handle under one would never see a pointer event.
+  above the Shell, so a handle under one would never see a pointer event. Each
+  one **toggles**: an affordance that only opens is a trap, because the panel it
+  opened then has no pointer route back.
 - **The Universal Shell** (⌘K), which reaches every surface by name.
 - **A first-run card** teaching exactly three keys, docked rather than modal so
   the page underneath stays live.
 
+Hovering a handle grows and brightens its grip. That is not a violation of the
+"panels open instantly" rule — that rule is about geometry, because the main
+process re-lays out native views to match. Hover changes only the grip's own
+paint, on the compositor, and republishes no snapshot.
+
 Presence is the inverse rule: the top strip shows an agent pill, an approval
 pill or an error count *only while each is real*. An idle surface shows nothing,
 which is what makes a glance at the corner worth taking.
+
+### The top strip
+
+Full width, 30px, on every platform, and the rail hangs below it. That is
+forced: macOS draws the traffic lights at the window's top-left corner, so
+whatever occupies that corner has to yield. A full-height rail beside the strip
+put its header underneath them.
+
+The strip is **segmented**. The part above the rail stays chrome-coloured; the
+part above the page takes the page's own background, so a light page does not
+get a hard dark seam across the window. The join lands exactly on the rail's
+right border. Colour comes from `<meta name="theme-color">` when the page
+declares one, otherwise from a background probe run in an **isolated world** —
+the page's main world can redefine `getComputedStyle`, and the boundary is not
+worth crossing for a convenience. `tintFor` clamps saturation and lightness so a
+brand colour can tint the chrome without owning it, and reports which foreground
+set stays readable.
+
+It also carries the address, **read-only**. The strip previously had no job at
+all: with nothing running, the presence rule left 30px of empty chrome, while
+"where am I" could only be answered by opening a modal. A label answers it for
+free. It is deliberately not an input — a second permanent field would put back
+the "which box did I want" decision that merging the address bar into the
+Universal Shell removed. Clicking it opens that one box prefilled, and since the
+overlay sits directly beneath the strip, it reads as the label expanding
+downward into an editor. The origin is emphasised and the path dimmed, which is
+a security boundary rather than decoration.
 
 ### The Universal Shell
 

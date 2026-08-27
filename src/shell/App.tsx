@@ -11,6 +11,7 @@ import { RuntimePanel } from "./components/RuntimePanel";
 import { ContextPanel } from "./components/ContextPanel";
 import { PanelResizer } from "./components/PanelResizer";
 import { EdgeHandles, type Edge } from "./components/EdgeHandles";
+import { AddressLabel } from "./components/AddressLabel";
 import { Presence, AgentProgress } from "./components/Presence";
 import { FirstRunCard } from "./components/FirstRunCard";
 import { ShortcutMap } from "./components/ShortcutMap";
@@ -18,6 +19,7 @@ import { ApprovalCard } from "./components/ApprovalCard";
 import { Toast } from "./components/Toast";
 import { LayoutProvider, ViewSlot } from "./layout/layout-model";
 import { topChromeHeight } from "./state/browser-store";
+import { tintFor } from "./state/tint";
 import { useAgentChannel } from "./state/agent";
 import { useConsoleFeed } from "./state/inspector";
 import {
@@ -71,6 +73,7 @@ const SESSION = openSession(readPreferences());
 export function App(): React.JSX.Element {
   const [tabs, setTabs] = useState<BrowserTab[]>([]);
   const [sessions, setSessions] = useState<Record<string, CdpSessionState>>({});
+  const [themes, setThemes] = useState<Record<string, string | null>>({});
   const [preferences, setPreferences] = useState<Preferences>(SESSION.preferences);
   const [workspace, setWorkspace] = useState<Workspace>(readWorkspace);
 
@@ -121,7 +124,15 @@ export function App(): React.JSX.Element {
     [split, tabs, active?.id],
   );
 
-  const topHeight = topChromeHeight(platform, false);
+  const topHeight = topChromeHeight();
+
+  /**
+   * The strip takes its colour from the page it sits against, so a light page
+   * does not get a hard dark seam across the top of the window. Only the
+   * segment above the page is tinted -- the segment above the rail stays
+   * chrome, because the rail is an instrument and does not belong to the page.
+   */
+  const tint = tintFor(active ? themes[active.id] : null);
 
   /**
    * Single source of truth for chrome geometry. Rail width, panel sizes and the
@@ -259,6 +270,8 @@ export function App(): React.JSX.Element {
         setTabs((current) =>
           current.map((tab) => (tab.id === event.tab.id ? event.tab : tab)),
         );
+      else if (event.type === "tab.theme")
+        setThemes((current) => ({ ...current, [event.tabId]: event.color }));
       else if (event.type === "cdp.status")
         setSessions((current) => ({
           ...current,
@@ -370,12 +383,15 @@ export function App(): React.JSX.Element {
       return next;
     });
 
-  const openEdge = (edge: Edge): void => {
+  // Toggle, not open. A handle that only opens leaves the panel it opened with
+  // no pointer route back, and the second click on the same spot reads as a
+  // broken control.
+  const toggleEdge = (edge: Edge): void => {
     dismissFirstRun();
-    if (edge === "left") setRailOpen(true);
+    if (edge === "left") setRailOpen((v) => !v);
     else if (edge === "right")
-      setPanels((p) => ({ ...p, contextOpen: true }));
-    else setPanels((p) => ({ ...p, runtimeOpen: true }));
+      setPanels((p) => ({ ...p, contextOpen: !p.contextOpen }));
+    else setPanels((p) => ({ ...p, runtimeOpen: !p.runtimeOpen }));
   };
 
   /** Surfaces that have a design but no backend yet say so, once, in the toast. */
@@ -512,28 +528,29 @@ export function App(): React.JSX.Element {
   return (
     <LayoutProvider order={paneOrder} shellOnTop={raised}>
       <div className={dragging ? `shell dragging-${dragging}` : "shell"}>
-        <div className="rail" style={{ width: railWidth }}>
-          {railOpen && (
-            <WorkspaceRail
-              groups={groups}
-              compact={resolved.railCollapsed}
-              run={run}
-              onActivate={(id) => void run_({ type: "tab.activate", tabId: id })}
-              onSelectTask={selectTask}
-              onNewTask={newTask}
-            />
-          )}
-        </div>
+        {/* The strip spans the whole window and the rail hangs below it. The
+            traffic lights are drawn by the OS at the window's top-left corner,
+            so whatever occupies that corner has to yield -- putting the rail
+            there instead meant its header sat underneath them. */}
+        <div
+          className={`chrome-top scheme-${tint.scheme}`}
+          style={{ height: topHeight }}
+        >
+          <div className="top-rail-zone" style={{ width: railWidth }} />
 
-        <div className="main">
           <div
-            className="chrome-top"
+            className="top-page-zone"
             style={{
-              height: topHeight,
-              paddingLeft: platform.trafficLightInset || 12,
+              background: tint.background,
+              // The lights overhang into this zone whenever the rail is
+              // narrower than they are.
+              paddingLeft: Math.max(0, platform.trafficLightInset - railWidth),
             }}
           >
-            <div className="drag-region" />
+            <AddressLabel
+              url={active?.url ?? ""}
+              onOpen={() => openShell(activeRef.current?.url ?? "")}
+            />
             <Presence
               run={run}
               approvals={approval ? 1 : 0}
@@ -544,7 +561,24 @@ export function App(): React.JSX.Element {
             />
             {active && <SessionBadge session={sessions[active.id]} />}
             {!platform.nativeWindowControls && <WindowControls />}
-            <AgentProgress run={run} />
+          </div>
+
+          <AgentProgress run={run} />
+        </div>
+
+        <div className="below">
+          <div className="rail" style={{ width: railWidth }}>
+            {railOpen && (
+              <WorkspaceRail
+                groups={groups}
+                compact={resolved.railCollapsed}
+                run={run}
+                onActivate={(id) => void run_({ type: "tab.activate", tabId: id })}
+                onSelectTask={selectTask}
+                onNewTask={newTask}
+                onClose={() => setRailOpen(false)}
+              />
+            )}
           </div>
 
           <div className={contextOpen ? "body" : "body gutter-right"}>
@@ -607,7 +641,7 @@ export function App(): React.JSX.Element {
         <EdgeHandles
           open={{ left: railOpen, right: contextOpen, bottom: runtimeOpen }}
           topHeight={topHeight}
-          onOpen={openEdge}
+          onToggle={toggleEdge}
         />
 
         {firstRun && (

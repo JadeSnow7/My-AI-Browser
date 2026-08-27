@@ -78,8 +78,18 @@ body {
 
 .shell {
   display: flex;
+  flex-direction: column;
   width: 100vw;
   height: 100vh;
+}
+
+/* Everything under the top strip. The rail lives here, not beside the strip:
+ * the OS draws the traffic lights at the window's top-left corner, so that
+ * corner has to belong to the strip. */
+.below {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 button {
@@ -99,17 +109,94 @@ button {
   position: relative;
   display: flex;
   flex: 0 0 auto;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 10px;
-  padding-right: 12px;
   background: var(--bg-chrome);
+  -webkit-app-region: drag;
 }
 
-.drag-region {
-  position: absolute;
-  inset: 0;
-  -webkit-app-region: drag;
+/*
+ * The strip is segmented. The left segment sits above the rail and stays
+ * chrome-coloured, because the rail is an instrument and does not belong to
+ * the page. The right segment sits above the page and takes the page's colour,
+ * so a light page does not get a hard dark seam across the window. The join
+ * lands exactly on the rail's right border.
+ */
+.top-rail-zone {
+  flex: 0 0 auto;
+  background: var(--bg-chrome);
+  /* Kept in step with the rail, or the seam lags behind the border it tracks. */
+  transition: width 0.18s ease;
+}
+
+.top-page-zone {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding-right: 12px;
+  /* Without this every navigation flashes the strip to the new colour. */
+  transition: background-color 0.2s ease;
+}
+
+/* Foreground sets. The tint decides which one; picking wrong is unreadable. */
+.chrome-top.scheme-dark .top-page-zone {
+  --top-fg: #d8dbe2;
+  --top-fg-dim: #7e8797;
+  --top-hover: #ffffff14;
+}
+
+.chrome-top.scheme-light .top-page-zone {
+  --top-fg: #2a2d33;
+  --top-fg-dim: #6b7280;
+  --top-hover: #0000000f;
+}
+
+/*
+ * Where you are. Read-only on purpose -- a second permanent input would put
+ * back the "which box did I want" decision that merging the address bar into
+ * the Universal Shell removed. Clicking opens that one box, prefilled.
+ */
+.address {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  flex: 0 1 auto;
+  min-width: 0;
+  margin-right: auto;
+  height: 20px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  font-size: 11px;
+  line-height: 20px;
+  white-space: nowrap;
+  cursor: pointer;
+  overflow: hidden;
+  -webkit-app-region: no-drag;
+  transition: background-color 0.12s ease;
+}
+
+.address:hover {
+  background: var(--top-hover);
+}
+
+/* The origin/path split is a security boundary, not decoration: a path is
+ * page-controlled text and must never be able to impersonate a host. */
+.address-host {
+  flex: 0 0 auto;
+  font-weight: 500;
+  color: var(--top-fg);
+}
+
+.address-rest {
+  flex: 0 1 auto;
+  min-width: 0;
+  color: var(--top-fg-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /*
@@ -169,7 +256,7 @@ button {
 
 /* Errors are a count, not an alarm: no fill until you point at them. */
 .presence-pill.is-errors {
-  color: var(--text-dim);
+  color: var(--top-fg-dim, var(--text-dim));
 }
 
 .presence-pill.is-errors .presence-dot {
@@ -177,8 +264,8 @@ button {
 }
 
 .presence-pill.is-errors:hover {
-  background: var(--state-hover);
-  color: var(--text);
+  background: var(--top-hover, var(--state-hover));
+  color: var(--top-fg, var(--text));
 }
 
 /*
@@ -238,12 +325,12 @@ button {
   height: 25px;
   border: 0;
   background: transparent;
-  color: #aeb5c2;
+  color: var(--top-fg, #aeb5c2);
   cursor: pointer;
 }
 
 .window-buttons button:hover {
-  background: #343a46;
+  background: var(--top-hover, #343a46);
 }
 
 .window-buttons button:last-child:hover {
@@ -257,6 +344,7 @@ button {
   position: relative;
   flex: 0 0 auto;
   height: 100%;
+  min-height: 0;
   transition: width 0.18s ease;
   -webkit-app-region: no-drag;
 }
@@ -275,13 +363,17 @@ button {
 .rail-head {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 4px 10px 10px;
+  gap: 8px;
+  padding: 4px 4px 10px 10px;
   font-size: 10px;
   font-family: var(--mono);
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--text-faint);
+}
+
+.rail-head > span:first-child {
+  flex: 1 1 auto;
 }
 
 .rail-key,
@@ -507,9 +599,41 @@ button {
   height: 8px;
 }
 
+/*
+ * The hover affordance. This does not violate the "panels open instantly" rule
+ * -- that rule is about geometry, because the main process re-lays out native
+ * views to match. Nothing here changes layout or republishes a snapshot: it is
+ * the grip's own paint, on the compositor, via transform and colour only.
+ */
 .edge-grip {
   border-radius: 999px;
   background: var(--grip);
+  transition:
+    background-color 0.12s ease,
+    transform 0.12s ease;
+}
+
+.edge.is-hover .edge-grip {
+  background: var(--link);
+}
+
+.edge-left.is-hover .edge-grip,
+.edge-right.is-hover .edge-grip {
+  transform: scaleY(1.35);
+}
+
+.edge-bottom.is-hover .edge-grip {
+  transform: scaleX(1.35);
+}
+
+/* An open panel already holds the edge; the handle steps back to a hairline
+ * so it stops competing with the panel's own border. */
+.edge.is-open .edge-grip {
+  opacity: 0.45;
+}
+
+.edge.is-open.is-hover .edge-grip {
+  opacity: 1;
 }
 
 .edge-left .edge-grip,
@@ -535,6 +659,7 @@ button {
 /* The pointer teaches the keyboard: the label carries the shortcut. */
 .edge-label {
   position: absolute;
+  animation: edge-label-in 0.14s ease both;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -550,14 +675,27 @@ button {
 
 .edge-left .edge-label {
   left: 14px;
+  --edge-label-from: -4px;
 }
 
 .edge-right .edge-label {
   right: 14px;
+  --edge-label-from: 4px;
 }
 
 .edge-bottom .edge-label {
   bottom: 14px;
+}
+
+@keyframes edge-label-in {
+  from {
+    opacity: 0;
+    transform: translateX(var(--edge-label-from, 0)) translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 .edge-label-name {
@@ -1615,4 +1753,27 @@ button.secondary:hover {
   height: 5px;
   border-radius: 50%;
   background: var(--warn);
+}
+
+/*
+ * Motion is an affordance here, never content: every animated property is
+ * decorative, so dropping them all costs nothing but the hint.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .rail,
+  .top-rail-zone,
+  .top-page-zone,
+  .edge-grip,
+  .address,
+  .agent-progress-fill {
+    transition: none;
+  }
+
+  .edge-label {
+    animation: none;
+  }
+
+  .edge.is-hover .edge-grip {
+    transform: none;
+  }
 }

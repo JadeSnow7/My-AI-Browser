@@ -2,3 +2,6 @@ node_modules/
 dist/
 *.log
 .DS_Store
+
+# Editor/tool scratch, not project config
+.claude/launch.json

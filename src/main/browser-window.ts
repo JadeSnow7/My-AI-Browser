@@ -9,6 +9,7 @@ import { TabManager } from "./tabs/tab-manager";
 import { SessionManager } from "./sessions/session-manager";
 import { LayoutApplier } from "./layout/layout-applier";
 import { PageSessionManager } from "./cdp/page-session-manager";
+import { watchPageTheme } from "./page-theme";
 import type { BrowserEvent } from "../shared/browser-event";
 import type { LayoutSnapshot } from "../shared/layout";
 import type { PersistedTab, PlatformInfo } from "../shared/types";
@@ -49,6 +50,8 @@ export class BrowserWindowController {
   readonly tabs: TabManager;
   readonly layout: LayoutApplier;
   readonly cdp: PageSessionManager;
+  /** Theme-colour watcher disposers, one per live view. */
+  private readonly themes = new Map<string, () => void>();
 
   constructor(
     private readonly onEvent: (e: BrowserEvent) => void,
@@ -66,6 +69,12 @@ export class BrowserWindowController {
         sandbox: true,
       },
     });
+    // A WebContentsView paints an opaque white backing by default. The Shell's
+    // CSS keeps `body` transparent, but that only covers the document -- the
+    // view's own backing survives it, and `shellOnTop` raises that backing over
+    // every page. Without this, opening the Universal Shell whites out the
+    // window behind the overlay.
+    this.shell.setBackgroundColor("#00000000");
     this.window.contentView.addChildView(this.shell);
     this.bindShortcuts(this.shell);
 
@@ -80,10 +89,18 @@ export class BrowserWindowController {
           this.window.contentView.addChildView(view);
           this.bindShortcuts(view);
           this.cdp.bind(tabId, view.webContents);
+          this.themes.set(
+            tabId,
+            watchPageTheme(view.webContents, (color) =>
+              this.onEvent({ type: "tab.theme", tabId, color }),
+            ),
+          );
           this.layout.reflow();
         },
         onViewDestroyed: (tabId, view) => {
           this.cdp.release(tabId);
+          this.themes.get(tabId)?.();
+          this.themes.delete(tabId);
           this.layout.forget(tabId);
           if (!view.webContents.isDestroyed())
             this.window.contentView.removeChildView(view);
