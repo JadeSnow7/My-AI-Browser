@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+permissions:
+  contents: read
+
+# A second push to the same branch makes the first run irrelevant.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    env:
+      # Nothing here launches the app: the checks are tsc, node:test and vite,
+      # all platform-independent. Skipping the ~100MB binary is most of the job.
+      ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - run: npm ci
+
+      # Runs tsc first, so a type error fails here with the type error rather
+      # than as a missing module downstream.
+      - name: Test
+        run: npm test
+
+      # The renderer is bundled by vite, not tsc, so a build is a distinct
+      # failure mode from a typecheck -- an unresolvable import or a bad asset
+      # reference only shows up here.
+      - name: Build
+        run: npm run build

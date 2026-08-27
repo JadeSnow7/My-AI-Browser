@@ -82,9 +82,13 @@ Measured pane sizes at `topHeight = 30`:
 
 | window | rail | + context | + runtime | + split |
 |---|---|---|---|---|
-| 1280 x 800 | 1040 x 770 | 720 x 770 | 720 x 510 | 455 x 510 (rail -> 48) |
-| 1440 x 900 | 1200 x 870 | 880 x 870 | 880 x 610 | 535 x 610 (rail -> 48) |
-| 1728 x 1117 | 1488 x 1087 | 1168 x 1087 | 1168 x 827 | 583 x 827 (rail kept) |
+| 1280 x 800 | 1032 x 762 | 720 x 762 | 720 x 510 | 455 x 510 (rail -> 48) |
+| 1440 x 900 | 1192 x 862 | 880 x 862 | 880 x 610 | 535 x 610 (rail -> 48) |
+| 1728 x 1117 | 1480 x 1079 | 1168 x 1079 | 1168 x 827 | 583 x 827 (rail kept) |
+
+The first two columns are 8px short of the window in each axis: that is the
+`EDGE_GUTTER` the edge handles live in, reserved only while the panel owning
+that edge is closed. `panels.test.ts` pins this table.
 
 So a design for the context panel has 260-560px to work with, the runtime panel
 120-620px of height, and a page pane can be as narrow as 440px in split view.
@@ -137,6 +141,20 @@ npm install
 npm run build
 npm run dev
 ```
+
+## Tests
+
+```bash
+npm test
+```
+
+`node:test` over the compiled output, no new dependencies. The suite covers the
+pure policy functions rather than the components: `clampPanels` (space
+pressure and the measured table above), `selectForHibernation` (the count-plus-
+idle policy and everything it must spare), `intentOf` / `buildResults` (intent
+derivation and the fixed group order the Universal Shell promises), and
+`groupTabs` / `pruneWorkspace`. These are the places where a refactor can
+quietly change behaviour without breaking a type.
 
 ⌘/Ctrl + `K` Universal Shell · `L` Universal Shell prefilled with this URL ·
 `B` workspace rail · `J` runtime panel · `I` context panel · `\` split view ·
