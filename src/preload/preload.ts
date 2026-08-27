@@ -11,7 +11,6 @@ import type {
 } from "../shared/types";
 import type { LayoutSnapshot } from "../shared/layout";
 import type { AddressOverlayEvent, AddressOverlayModel, AddressOverlayCloseReason } from "../shared/address-overlay";
-import { createFanout } from "../shared/fanout";
 
 const platform = (process.platform === "win32"
   ? "win32"
@@ -32,19 +31,39 @@ const platformInfo: PlatformInfo = {
 };
 
 let browserIpcListener: ((_event: Electron.IpcRendererEvent, event: BrowserEvent) => void) | null = null;
-const browserFanout = createFanout<BrowserEvent>(
-  () => {
+const browserFanout = (() => {
+  const listeners = new Set<(event: BrowserEvent) => void>();
+  return {
+    subscribe(listener: (event: BrowserEvent) => void): () => void {
+      const wasEmpty = listeners.size === 0;
+      listeners.add(listener);
+      if (wasEmpty) onFirst();
+      let active = true;
+      return () => {
+        if (!active) return;
+        active = false;
+        listeners.delete(listener);
+        if (listeners.size === 0) onEmpty();
+      };
+    },
+    publish(event: BrowserEvent): void {
+      for (const listener of [...listeners]) listener(event);
+    },
+  };
+
+  function onFirst(): void {
     browserIpcListener = (_event: Electron.IpcRendererEvent, event: BrowserEvent) => browserFanout.publish(event);
     ipcRenderer.on("browser:event", browserIpcListener);
     ipcRenderer.send("browser:subscribe");
-  },
-  () => {
+  }
+
+  function onEmpty(): void {
     if (!browserIpcListener) return;
     ipcRenderer.removeListener("browser:event", browserIpcListener);
     browserIpcListener = null;
     ipcRenderer.send("browser:unsubscribe");
-  },
-);
+  }
+})();
 
 const browser: BrowserBridge = {
   command: (command: BrowserCommand) =>
