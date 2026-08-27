@@ -3,6 +3,8 @@ import type { BrowserCommand } from "../../shared/browser-command";
 import type { BrowserRuntime } from "../browser-runtime";
 import type { WindowAction } from "../../shared/types";
 import type { LayoutSnapshot } from "../../shared/layout";
+import { isOverlayEvent, isOverlayModel } from "../../shared/address-overlay";
+import type { AddressOverlayCloseReason } from "../../shared/address-overlay";
 
 /**
  * Only the Shell WebContentsView may talk to the main process. Page renderers
@@ -13,6 +15,8 @@ import type { LayoutSnapshot } from "../../shared/layout";
 export function registerIpc(runtime: BrowserRuntime): void {
   const trusted = (sender: WebContents): boolean =>
     sender === runtime.controller?.shell.webContents;
+  const overlay = (sender: WebContents): boolean =>
+    sender === runtime.controller?.addressOverlay.webContents;
 
   const guard =
     <A extends unknown[], R>(fn: (sender: WebContents, ...args: A) => R) =>
@@ -42,6 +46,28 @@ export function registerIpc(runtime: BrowserRuntime): void {
 
   ipcMain.on("shell:layout", (event, snapshot: LayoutSnapshot) => {
     if (trusted(event.sender)) runtime.applyLayout(snapshot);
+  });
+
+  ipcMain.on("address-overlay:model", (event, model: unknown) => {
+    if (trusted(event.sender) && isOverlayModel(model))
+      runtime.controller.openAddressOverlayModel(model);
+  });
+  ipcMain.on("address-overlay:event", (event, value: unknown) => {
+    if (overlay(event.sender) && isOverlayEvent(value))
+      runtime.controller.addressOverlayController.event(value);
+  });
+
+  ipcMain.on("address-overlay:close", (event, sessionId?: unknown, reason?: unknown) => {
+    const allowed = new Set<AddressOverlayCloseReason>(["outside", "escape", "window-blur", "modal", "tab-change", "failure", "submit"]);
+    if (trusted(event.sender) && (sessionId === undefined || typeof sessionId === "string")) {
+      const closeReason = typeof reason === "string" && allowed.has(reason as AddressOverlayCloseReason)
+        ? reason as AddressOverlayCloseReason
+        : "outside";
+      runtime.controller.closeAddressOverlay(sessionId, closeReason);
+    } else if (overlay(event.sender)) runtime.controller.addressOverlayController.close("outside");
+  });
+  ipcMain.on("address-overlay:ready", (event) => {
+    if (overlay(event.sender)) runtime.controller.addressOverlayController.loadReady();
   });
 
   ipcMain.handle(

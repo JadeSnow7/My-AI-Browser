@@ -3,6 +3,7 @@ import type { BrowserTab, PersistedTab } from "../../shared/types";
 import type { BrowserEvent } from "../../shared/browser-event";
 import type { InternalBrowserTab, TabManagerHooks } from "./types";
 import { SessionManager } from "../sessions/session-manager";
+import { normalizeNavigationInput } from "../../shared/navigation";
 import {
   defaultHibernationConfig,
   HibernationScheduler,
@@ -10,12 +11,7 @@ import {
   type HibernationConfig,
 } from "./hibernation";
 
-const normalize = (raw: string): string => {
-  const s = raw.trim();
-  if (/^https?:\/\//i.test(s)) return s;
-  if (/^[\w.-]+\.[a-z]{2,}/i.test(s)) return `https://${s}`;
-  return `https://www.google.com/search?q=${encodeURIComponent(s)}`;
-};
+const normalize = (raw: string): string => normalizeNavigationInput(raw);
 
 /** Best-effort scroll capture; a slow or hung page must not block a discard. */
 const SCROLL_CAPTURE_TIMEOUT_MS = 200;

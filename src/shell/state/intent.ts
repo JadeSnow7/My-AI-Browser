@@ -13,6 +13,8 @@
  * Everything here is pure, so the routing table is testable without a window.
  */
 
+import { looksLikeAddress } from "../../shared/navigation";
+
 export type Intent = "anything" | "go" | "search" | "ask" | "command" | "shell";
 
 export type ResultGroup =
@@ -45,8 +47,7 @@ export const MAX_PER_GROUP = 3;
  * Looks like somewhere to go rather than something to say: a dotted hostname,
  * or a bare `localhost` with an optional port.
  */
-export const LOOKS_LIKE_URL =
-  /^[\w-]+(\.[a-z]{2,})+(\/|$)|^localhost(:\d+)?/i;
+export const LOOKS_LIKE_URL = /^(?:https?:\/\/)?(?:[\w-]+(?:\.[a-z]{2,})+|localhost)(?::\d+)?(?:[/?#]|$)/i;
 
 export function intentOf(query: string): Intent {
   const value = query.trim();
@@ -54,7 +55,7 @@ export function intentOf(query: string): Intent {
   if (value.startsWith(">")) return "shell";
   if (value.startsWith("/")) return "command";
   if (value.startsWith("?") || value.startsWith("@")) return "ask";
-  if (LOOKS_LIKE_URL.test(value)) return "go";
+  if (looksLikeAddress(value)) return "go";
   return "search";
 }
 
@@ -158,7 +159,7 @@ export function buildResults(context: ShellContext): ShellResult[] {
   const results: ShellResult[] = [];
 
   if (allowed.has("Navigate")) {
-    if (body && LOOKS_LIKE_URL.test(body))
+    if (body && looksLikeAddress(body))
       results.push({
         id: "nav:typed",
         group: "Navigate",

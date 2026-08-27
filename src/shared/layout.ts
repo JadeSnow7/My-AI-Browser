@@ -23,6 +23,15 @@ export interface ViewPlacement {
   visible: boolean;
 }
 
+/** A small, independent native surface used by transient chrome overlays. */
+export interface OverlayPlacement {
+  sessionId: string;
+  rect: Rect;
+  visible: boolean;
+  /** Incremented only when the overlay should take keyboard focus. */
+  focusRequest: number;
+}
+
 export interface LayoutSnapshot {
   /** Monotonic; the applier drops out-of-order snapshots. */
   revision: number;
@@ -35,12 +44,15 @@ export interface LayoutSnapshot {
    * the margins it left uncovered.
    */
   shellOnTop: boolean;
+  /** Optional; omitted by older Shell renderers and treated as hidden. */
+  addressOverlay?: OverlayPlacement;
 }
 
 export const emptyLayout = (): LayoutSnapshot => ({
   revision: 0,
   views: [],
   shellOnTop: false,
+  addressOverlay: undefined,
 });
 
 export const rectsEqual = (a: Rect, b: Rect): boolean =>
@@ -48,7 +60,7 @@ export const rectsEqual = (a: Rect, b: Rect): boolean =>
 
 /** Stable signature of the back-to-front ordering, used to skip re-stacking. */
 export const stackSignature = (snapshot: LayoutSnapshot): string =>
-  `${snapshot.shellOnTop ? "shell" : "page"}:${snapshot.views
+  `${snapshot.shellOnTop ? "shell" : "page"}:${snapshot.addressOverlay?.visible ? `overlay:${snapshot.addressOverlay.sessionId}` : ""}:${snapshot.views
     .filter((v) => v.visible)
     .map((v) => v.tabId)
     .join(",")}`;

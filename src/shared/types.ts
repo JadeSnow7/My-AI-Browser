@@ -1,4 +1,5 @@
 import type { LayoutSnapshot } from "./layout";
+import type { AddressOverlayCloseReason, AddressOverlayEvent, AddressOverlayModel } from "./address-overlay";
 import type { CdpDomain, CdpSessionState } from "./cdp";
 
 export type TabState = "loading" | "ready" | "crashed" | "discarded";
@@ -76,6 +77,12 @@ export interface BrowserBridge {
   layout: (snapshot: LayoutSnapshot) => void;
   windowAction: (action: WindowAction) => Promise<void>;
   platform: PlatformInfo;
+  /** Open the bounded address surface without raising the full Shell view. */
+  addressOverlay: {
+    update: (model: AddressOverlayModel) => void;
+    close: (sessionId?: string, reason?: AddressOverlayCloseReason) => void;
+    subscribe: (listener: (event: AddressOverlayEvent) => void) => () => void;
+  };
   cdp: {
     subscribe: (tabId: string, domains: CdpDomain[]) => Promise<void>;
     unsubscribe: (tabId: string, domains: CdpDomain[]) => Promise<void>;

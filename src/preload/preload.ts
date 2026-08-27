@@ -10,6 +10,7 @@ import type {
   WindowAction,
 } from "../shared/types";
 import type { LayoutSnapshot } from "../shared/layout";
+import type { AddressOverlayEvent, AddressOverlayModel, AddressOverlayCloseReason } from "../shared/address-overlay";
 
 const platform = (process.platform === "win32"
   ? "win32"
@@ -55,6 +56,15 @@ const browser: BrowserBridge = {
   windowAction: (action: WindowAction) =>
     ipcRenderer.invoke("window:action", action),
   platform: platformInfo,
+  addressOverlay: {
+    update: (model: AddressOverlayModel) => ipcRenderer.send("address-overlay:model", model),
+    close: (sessionId?: string, reason?: AddressOverlayCloseReason) => ipcRenderer.send("address-overlay:close", sessionId, reason),
+    subscribe: (fn: (event: AddressOverlayEvent) => void) => {
+      const listener = (_event: Electron.IpcRendererEvent, value: AddressOverlayEvent) => fn(value);
+      ipcRenderer.on("address-overlay:event", listener);
+      return () => ipcRenderer.removeListener("address-overlay:event", listener);
+    },
+  },
   cdp: {
     subscribe: (tabId: string, domains: CdpDomain[]) =>
       ipcRenderer.invoke("browser:command", {

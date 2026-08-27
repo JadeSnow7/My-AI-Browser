@@ -19,9 +19,9 @@ import {
  * the user had to know which one owned a thought before having it; one box
  * plus a visible intent chip means the box classifies and shows its work.
  *
- * It is the Shell's only routinely-modal surface, so it raises the Shell above
- * the page views and swallows page input for its lifetime -- which is what a
- * modal wants, and why nothing else here is allowed to float.
+ * The same component is used by the full Shell and the bounded native address
+ * surface. The latter never raises the full Shell and deliberately starts
+ * without focus during hover preview.
  */
 export function UniversalShell({
   query,
@@ -30,6 +30,9 @@ export function UniversalShell({
   onSelected,
   onClose,
   context,
+  focusOnMount = true,
+  preview = false,
+  onEdit,
 }: {
   query: string;
   onQuery: (value: string) => void;
@@ -37,6 +40,9 @@ export function UniversalShell({
   onSelected: (index: number) => void;
   onClose: () => void;
   context: Omit<ShellContext, "query">;
+  focusOnMount?: boolean;
+  preview?: boolean;
+  onEdit?: () => void;
 }): React.JSX.Element {
   const input = useRef<HTMLInputElement>(null);
   const intent = intentOf(query);
@@ -46,8 +52,8 @@ export function UniversalShell({
   );
 
   useEffect(() => {
-    input.current?.focus();
-  }, []);
+    if (focusOnMount) input.current?.focus();
+  }, [focusOnMount]);
 
   const index = results.length === 0 ? 0 : Math.min(selected, results.length - 1);
 
@@ -77,6 +83,10 @@ export function UniversalShell({
   };
 
   const onKeyDown = (event: React.KeyboardEvent): void => {
+    // Enter/Escape during an IME composition belong to the composition, not
+    // to navigation or dismissal. keyCode 229 covers Chromium's composition
+    // path on older macOS input methods.
+    if (event.nativeEvent.isComposing || event.keyCode === 229) return;
     if (event.key === "Escape") {
       event.preventDefault();
       onClose();
@@ -101,7 +111,7 @@ export function UniversalShell({
   );
 
   return (
-    <div className="ushell" role="dialog" aria-label="Universal Shell">
+    <div className={preview ? "ushell preview" : "ushell"} role="dialog" aria-label="Universal Shell">
       <div className="ushell-input">
         <span className={`intent-chip intent-${intent}`}>
           {INTENT_LABEL[intent]}
@@ -115,12 +125,13 @@ export function UniversalShell({
             onQuery(event.target.value);
             onSelected(0);
           }}
+          onFocus={onEdit}
           onKeyDown={onKeyDown}
         />
         <span className="ushell-key">⌘K</span>
       </div>
 
-      <div className="ushell-results">
+      {!preview && <div className="ushell-results">
         {groups.map((group) => (
           <ResultSection
             key={group}
@@ -137,13 +148,13 @@ export function UniversalShell({
         {results.length === 0 && (
           <p className="ushell-empty">Nothing matches — ⇥ to change intent.</p>
         )}
-      </div>
+      </div>}
 
       <footer className="ushell-hints">
         <span>
           <b>tab</b> change intent · <b>↑↓</b> move · <b>⏎</b> run
         </span>
-        <span>groups never reorder</span>
+        <span>{preview ? "click to edit" : "groups never reorder"}</span>
       </footer>
     </div>
   );

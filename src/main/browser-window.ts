@@ -13,6 +13,9 @@ import { watchPageTheme } from "./page-theme";
 import type { BrowserEvent } from "../shared/browser-event";
 import type { LayoutSnapshot } from "../shared/layout";
 import type { PersistedTab, PlatformInfo } from "../shared/types";
+import { AddressOverlayController } from "./address-overlay-controller";
+import type { AddressOverlayCloseReason, AddressOverlayEvent } from "../shared/address-overlay";
+import type { AddressOverlayModel } from "../shared/address-overlay";
 
 const IS_MAC = process.platform === "darwin";
 /** Horizontal room the macOS close/minimise/zoom buttons need, in DIP. */
@@ -47,11 +50,14 @@ const windowOptions = (): BaseWindowConstructorOptions =>
 export class BrowserWindowController {
   readonly window: BaseWindow;
   readonly shell: WebContentsView;
+  addressOverlay: WebContentsView;
+  readonly addressOverlayController: AddressOverlayController;
   readonly tabs: TabManager;
   readonly layout: LayoutApplier;
   readonly cdp: PageSessionManager;
   /** Theme-colour watcher disposers, one per live view. */
   private readonly themes = new Map<string, () => void>();
+  private addressOverlayLoadFailed = false;
 
   constructor(
     private readonly onEvent: (e: BrowserEvent) => void,
@@ -78,11 +84,31 @@ export class BrowserWindowController {
     this.window.contentView.addChildView(this.shell);
     this.bindShortcuts(this.shell);
 
+    this.addressOverlay = this.createAddressOverlayView();
+    this.addressOverlay.setBackgroundColor("#00000000");
+    this.addressOverlay.setVisible(false);
+    this.window.contentView.addChildView(this.addressOverlay);
+    this.addressOverlayController = new AddressOverlayController(
+      this.window,
+      this.addressOverlay,
+      (event: AddressOverlayEvent) => {
+        if (!this.shell.webContents.isDestroyed()) this.shell.webContents.send("address-overlay:event", event);
+      },
+    );
+    // The overlay owns its own input while focused, but uses the same narrow
+    // shortcut contract as pages and the Shell (Cmd+L/Cmd+K/Esc included).
+    this.bindAddressOverlayLifecycle(this.addressOverlay);
+    this.bindShortcuts(this.addressOverlay);
+    this.loadAddressOverlay(this.addressOverlay);
+
     this.cdp = new PageSessionManager(onEvent);
 
     this.tabs = new TabManager(
       new SessionManager(),
-      (event) => this.onEvent(event),
+      (event) => {
+        if (event.type === "tabs.changed") this.closeAddressOverlay(undefined, "tab-change");
+        this.onEvent(event);
+      },
       () => this.persist(),
       {
         onViewCreated: (tabId, view) => {
@@ -115,6 +141,7 @@ export class BrowserWindowController {
       this.shell,
       (tabId) => this.tabs.getView(tabId),
       () => this.tabs.listViews(),
+      this.addressOverlayController,
     );
 
     void this.shell.webContents.loadFile(
@@ -126,6 +153,7 @@ export class BrowserWindowController {
     else this.tabs.createTab();
 
     this.window.on("resize", () => this.layout.reflow());
+    this.window.on("blur", () => this.closeAddressOverlay(undefined, "window-blur"));
     this.window.on("closed", () => this.destroyAll());
     this.layout.reflow();
     this.armLayoutFallback();
@@ -165,6 +193,16 @@ export class BrowserWindowController {
       this.shell.webContents.focus();
   }
 
+  openAddressOverlayModel(model: AddressOverlayModel): void {
+    if (this.addressOverlayLoadFailed) this.rebuildAddressOverlayView();
+    this.addressOverlayController.open(model);
+  }
+
+  closeAddressOverlay(sessionId?: string, reason: AddressOverlayCloseReason = "outside"): void {
+    if (!sessionId || sessionId === this.addressOverlayController.currentSession())
+      this.addressOverlayController.close(reason);
+  }
+
   windowAction(action: "minimize" | "maximize" | "close"): void {
     if (action === "close") return this.close();
     if (this.window.isDestroyed()) return;
@@ -184,8 +222,17 @@ export class BrowserWindowController {
   }
 
   private bindShortcuts(view: WebContentsViewType): void {
+    view.webContents.on("before-mouse-event", (_event, mouse) => {
+      if (
+        view !== this.addressOverlay &&
+        mouse.type === "mouseDown" &&
+        this.addressOverlayController?.isVisible()
+      )
+        this.addressOverlayController.close("outside");
+    });
     view.webContents.on("before-input-event", (event, input) => {
       if (input.type !== "keyDown") return;
+      if (input.isComposing) return;
       const key = input.key.toLowerCase();
       const keys = [
         "l",
@@ -216,6 +263,62 @@ export class BrowserWindowController {
     });
   }
 
+  private createAddressOverlayView(): WebContentsView {
+    return new WebContentsView({
+      webPreferences: {
+        preload: path.join(__dirname, "../preload/address-overlay-preload.js"),
+        contextIsolation: true,
+        nodeIntegration: false,
+        sandbox: true,
+      },
+    });
+  }
+
+  private loadAddressOverlay(view: WebContentsView): void {
+    void view.webContents.loadFile(path.join(__dirname, "../shell/address-overlay.html"));
+  }
+
+  private bindAddressOverlayLifecycle(view: WebContentsView): void {
+    view.webContents.on("did-finish-load", () => {
+      if (view === this.addressOverlay) this.addressOverlayController.loadReady();
+    });
+    view.webContents.on("did-fail-load", (_event, code, description, url) => {
+      if (view !== this.addressOverlay) return;
+      this.addressOverlayLoadFailed = true;
+      console.error(`address overlay failed to load (${code}): ${description} ${url}`);
+      this.addressOverlayController.close("failure");
+    });
+    view.webContents.on("render-process-gone", (_event, details) => {
+      if (view !== this.addressOverlay || this.window.isDestroyed()) return;
+      console.error(`address overlay renderer exited: ${details.reason}`);
+      this.addressOverlayController.close("failure");
+      this.window.contentView.removeChildView(view);
+      this.addressOverlay = this.createAddressOverlayView();
+      this.addressOverlay.setBackgroundColor("#00000000");
+      this.addressOverlay.setVisible(false);
+      this.window.contentView.addChildView(this.addressOverlay);
+      this.addressOverlayController.replaceView(this.addressOverlay);
+      this.bindAddressOverlayLifecycle(this.addressOverlay);
+      this.bindShortcuts(this.addressOverlay);
+      this.loadAddressOverlay(this.addressOverlay);
+    });
+  }
+
+  private rebuildAddressOverlayView(): void {
+    const old = this.addressOverlay;
+    this.window.contentView.removeChildView(old);
+    this.addressOverlay = this.createAddressOverlayView();
+    this.addressOverlay.setBackgroundColor("#00000000");
+    this.addressOverlay.setVisible(false);
+    this.window.contentView.addChildView(this.addressOverlay);
+    this.addressOverlayController.replaceView(this.addressOverlay);
+    this.bindAddressOverlayLifecycle(this.addressOverlay);
+    this.bindShortcuts(this.addressOverlay);
+    this.loadAddressOverlay(this.addressOverlay);
+    if (!old.webContents.isDestroyed()) old.webContents.close();
+    this.addressOverlayLoadFailed = false;
+  }
+
   persist(): void {
     this.onPersist();
   }
@@ -223,6 +326,7 @@ export class BrowserWindowController {
   destroyAll(): void {
     this.cdp.disposeAll();
     this.tabs.destroyAll();
+    this.addressOverlayController.destroy();
     if (!this.shell.webContents.isDestroyed()) this.shell.webContents.close();
   }
 

@@ -109,7 +109,7 @@ button {
   position: relative;
   display: flex;
   flex: 0 0 auto;
-  background: var(--bg-chrome);
+  background: var(--page-tint, var(--bg-chrome));
   -webkit-app-region: drag;
 }
 
@@ -122,7 +122,7 @@ button {
  */
 .top-rail-zone {
   flex: 0 0 auto;
-  background: var(--bg-chrome);
+  background: var(--page-tint, var(--bg-chrome));
   /* Kept in step with the rail, or the seam lags behind the border it tracks. */
   transition: width 0.18s ease;
 }
@@ -147,7 +147,19 @@ button {
   --top-hover: #ffffff14;
 }
 
+.chrome-top.scheme-dark {
+  --top-fg: #d8dbe2;
+  --top-fg-dim: #7e8797;
+  --top-hover: #ffffff14;
+}
+
 .chrome-top.scheme-light .top-page-zone {
+  --top-fg: #2a2d33;
+  --top-fg-dim: #6b7280;
+  --top-hover: #0000000f;
+}
+
+.chrome-top.scheme-light {
   --top-fg: #2a2d33;
   --top-fg-dim: #6b7280;
   --top-hover: #0000000f;
@@ -164,7 +176,7 @@ button {
   gap: 4px;
   flex: 0 1 auto;
   min-width: 0;
-  margin-right: auto;
+  margin: 0;
   height: 20px;
   padding: 0 8px;
   border: 0;
@@ -177,6 +189,46 @@ button {
   overflow: hidden;
   -webkit-app-region: no-drag;
   transition: background-color 0.12s ease;
+}
+
+/* The address is centered against the whole window, not the flex contents
+ * beside it. The wrapper is an absolute island so presence/status changes
+ * cannot nudge its optical center. */
+.address-wrap {
+  position: absolute;
+  left: 50%;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  width: max-content;
+  max-width: min(620px, calc(100vw - 220px));
+  transform: translateX(-50%);
+  -webkit-app-region: no-drag;
+}
+
+.address-wrap .address {
+  max-width: 100%;
+}
+
+.address-wrap.is-expanded {
+  animation: address-expand 0.14s ease-out both, address-drop 0.18s ease-out 0.14s both;
+}
+
+.address-input {
+  width: 100%;
+  color: var(--top-fg);
+  outline: none;
+  cursor: text;
+}
+
+@keyframes address-expand {
+  from { clip-path: inset(0 42% round 5px); opacity: .75; }
+  to { clip-path: inset(0 0 round 5px); opacity: 1; }
+}
+
+@keyframes address-drop {
+  from { transform: translateX(-50%) translateY(-2px); }
+  to { transform: translateX(-50%) translateY(8px); }
 }
 
 .address:hover {
@@ -578,6 +630,12 @@ button {
   align-items: center;
   justify-content: center;
   -webkit-app-region: no-drag;
+  background: var(--page-tint, transparent);
+}
+
+/* Once a panel owns the edge, its dark surface is the foreground there. */
+.edge.is-open {
+  background: var(--bg-panel);
 }
 
 .edge-left {
@@ -1189,6 +1247,52 @@ button {
   -webkit-app-region: no-drag;
 }
 
+.address-overlay-root {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.address-overlay-root .ushell {
+  position: absolute;
+  inset: auto 0 auto 0;
+  width: 100%;
+  transform: none;
+  pointer-events: auto;
+}
+
+.address-overlay-root.overlay-preview .ushell {
+  animation: overlay-address-expand 0.14s ease-out both,
+    overlay-address-drop 0.18s ease-out 0.14s both;
+}
+
+.address-overlay-root.reduced-motion .ushell {
+  animation: none;
+  transform: none;
+}
+
+@keyframes overlay-address-expand {
+  from {
+    clip-path: inset(0 42% round 8px);
+    opacity: 0.72;
+  }
+  to {
+    clip-path: inset(0 0 round 8px);
+    opacity: 1;
+  }
+}
+
+@keyframes overlay-address-drop {
+  from { transform: translateY(-2px); }
+  to { transform: translateY(8px); }
+}
+
+.address-overlay-root .ushell-results {
+  max-height: min(340px, calc(100vh - 150px));
+}
+
 .ushell-input {
   display: flex;
   align-items: center;
@@ -1770,6 +1874,10 @@ button.secondary:hover {
   }
 
   .edge-label {
+    animation: none;
+  }
+
+  .address-overlay-root.overlay-preview .ushell {
     animation: none;
   }
 

@@ -7,7 +7,7 @@ import React, {
   useMemo,
   useRef,
 } from "react";
-import type { LayoutSnapshot, Rect, ViewPlacement } from "../../shared/layout";
+import type { LayoutSnapshot, Rect, ViewPlacement, OverlayPlacement } from "../../shared/layout";
 
 interface LayoutRegistry {
   register: (tabId: string, element: HTMLElement | null) => void;
@@ -37,19 +37,21 @@ const toRect = (element: HTMLElement): Rect => {
 export function LayoutProvider({
   order,
   shellOnTop,
+  addressOverlay,
   children,
 }: {
   /** Visible panes, back-to-front. */
   order: string[];
   shellOnTop: boolean;
+  addressOverlay?: OverlayPlacement;
   children: React.ReactNode;
 }): React.JSX.Element {
   const elements = useRef(new Map<string, HTMLElement>());
   const revision = useRef(0);
   const lastPublished = useRef("");
   const frame = useRef<number | null>(null);
-  const state = useRef({ order, shellOnTop });
-  state.current = { order, shellOnTop };
+  const state = useRef<{ order: string[]; shellOnTop: boolean; addressOverlay?: OverlayPlacement }>({ order, shellOnTop, addressOverlay });
+  state.current = { order, shellOnTop, addressOverlay };
 
   const publish = useCallback(() => {
     const { order: currentOrder, shellOnTop: onTop } = state.current;
@@ -62,7 +64,7 @@ export function LayoutProvider({
       views.push({ tabId, rect, visible: true });
     }
 
-    const signature = JSON.stringify({ views, onTop });
+    const signature = JSON.stringify({ views, onTop, addressOverlay: state.current.addressOverlay });
     if (signature === lastPublished.current) return;
     lastPublished.current = signature;
 
@@ -70,6 +72,7 @@ export function LayoutProvider({
       revision: ++revision.current,
       views,
       shellOnTop: onTop,
+      addressOverlay: state.current.addressOverlay,
     };
     window.browser.layout(snapshot);
   }, []);
@@ -121,7 +124,7 @@ export function LayoutProvider({
   // the main process in the same frame the DOM settles.
   useLayoutEffect(() => {
     remeasure();
-  }, [order, shellOnTop, remeasure]);
+  }, [order, shellOnTop, addressOverlay, remeasure]);
 
   const value = useMemo<LayoutRegistry>(
     () => ({ register, remeasure }),

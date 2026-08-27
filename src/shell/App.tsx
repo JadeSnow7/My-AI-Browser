@@ -3,7 +3,6 @@ import type { BrowserTab, BrowserBridge, SidebarState } from "../shared/types";
 import type { BrowserCommand } from "../shared/browser-command";
 import type { BrowserEvent } from "../shared/browser-event";
 import type { CdpSessionState } from "../shared/cdp";
-import { UniversalShell } from "./components/UniversalShell";
 import { WorkspaceRail } from "./components/WorkspaceRail";
 import { WindowControls } from "./components/WindowControls";
 import { SessionBadge } from "./components/SessionBadge";
@@ -20,6 +19,8 @@ import { Toast } from "./components/Toast";
 import { LayoutProvider, ViewSlot } from "./layout/layout-model";
 import { topChromeHeight } from "./state/browser-store";
 import { tintFor } from "./state/tint";
+import type { AddressOverlayModel } from "../shared/address-overlay";
+import type { OverlayPlacement } from "../shared/layout";
 import { useAgentChannel } from "./state/agent";
 import { useConsoleFeed } from "./state/inspector";
 import {
@@ -77,9 +78,6 @@ export function App(): React.JSX.Element {
   const [preferences, setPreferences] = useState<Preferences>(SESSION.preferences);
   const [workspace, setWorkspace] = useState<Workspace>(readWorkspace);
 
-  const [shellOpen, setShellOpen] = useState(false);
-  const [query, setQuery] = useState("");
-  const [selected, setSelected] = useState(0);
   const [keymap, setKeymap] = useState(false);
   const [firstRun, setFirstRun] = useState(SESSION.firstRun);
 
@@ -96,11 +94,65 @@ export function App(): React.JSX.Element {
   const [railOpen, setRailOpen] = useState(SESSION.preferences.railOpen);
   const [dragging, setDragging] = useState<"runtime" | "context" | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const overlaySession = useRef<string | null>(null);
+  const overlayCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const overlayCommands = useRef<Array<{ id: string; name: string; hint: string }>>([]);
+  const [overlayPlacement, setOverlayPlacement] = useState<OverlayPlacement | undefined>();
+  const [overlayModel, setOverlayModel] = useState<AddressOverlayModel | null>(null);
+  const overlayModelRef = useRef<AddressOverlayModel | null>(null);
+  overlayModelRef.current = overlayModel;
 
   const viewport = useViewport();
   const active = tabs.find((t) => t.active) ?? null;
   const activeRef = useRef(active);
   activeRef.current = active;
+  const topHeight = topChromeHeight();
+
+  const openNativeOverlay = useCallback((mode: "preview" | "edit" | "command", seed?: string): void => {
+    if (overlayCloseTimer.current) {
+      clearTimeout(overlayCloseTimer.current);
+      overlayCloseTimer.current = null;
+    }
+    const current = activeRef.current;
+    if (!current) return;
+    const sessionId = overlaySession.current ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    overlaySession.current = sessionId;
+    const width = Math.min(620, Math.max(1, window.innerWidth - 32));
+    // Keep a bounded animation corridor for the native preview view. This
+    // never changes the page slots or causes a webpage reflow.
+    const surface = { x: Math.round((window.innerWidth - width) / 2), y: topHeight + 8, width, height: mode === "preview" ? 82 : 420 };
+    setOverlayModel((previous) => {
+      const sameSession = previous?.sessionId === sessionId;
+      const nextMode = previous?.mode === "edit" && mode === "preview" ? "edit" : mode;
+      const nextSeed = seed ?? (sameSession ? previous?.querySeed : undefined) ?? current.url;
+      const next: AddressOverlayModel = {
+        sessionId,
+        tabId: current.id,
+        mode: nextMode,
+        querySeed: nextSeed,
+        seedRevision: sameSession ? previous!.seedRevision + 1 : 1,
+        anchor: { x: Math.max(0, Math.round((window.innerWidth - 120) / 2)), y: 0, width: 120, height: topHeight },
+        surface,
+        motion: "opening",
+        reducedMotion: window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+        context: { activeUrl: current.url, tabCount: tabs.length, taskName: "this task", commands: overlayCommands.current },
+      };
+      setOverlayPlacement({ sessionId, rect: surface, visible: true, focusRequest: nextMode === "preview" ? 0 : (previous ? previous.seedRevision + 1 : 1) });
+      return next;
+    });
+  }, [tabs.length, topHeight]);
+
+  const closeNativeOverlay = useCallback((reason: "outside" | "escape" | "window-blur" | "modal" | "tab-change" | "failure" | "submit" = "outside"): void => {
+    if (overlayCloseTimer.current) {
+      clearTimeout(overlayCloseTimer.current);
+      overlayCloseTimer.current = null;
+    }
+    const sessionId = overlaySession.current;
+    overlaySession.current = null;
+    setOverlayModel(null);
+    setOverlayPlacement(undefined);
+    if (sessionId) window.browser.addressOverlay.close(sessionId, reason);
+  }, []);
 
   const { run, approval, consoleErrors: channelErrors } = useAgentChannel();
 
@@ -123,8 +175,6 @@ export function App(): React.JSX.Element {
     () => (split ? (tabs.find((t) => t.id !== active?.id) ?? null) : null),
     [split, tabs, active?.id],
   );
-
-  const topHeight = topChromeHeight();
 
   /**
    * The strip takes its colour from the page it sits against, so a light page
@@ -212,34 +262,32 @@ export function App(): React.JSX.Element {
   const run_ = (command: BrowserCommand): Promise<void> =>
     window.browser.command(command);
 
-  /** Overlays hold keyboard focus in the Shell; give it back when they close. */
+  /** Return focus to the active webpage after an explicit overlay dismissal. */
   const focusPage = (): void => void run_({ type: "focus.page" });
 
-  const closeShell = useCallback((): void => {
-    setShellOpen(false);
-    setQuery("");
-    setSelected(0);
-    focusPage();
-  }, []);
-
-  const openShell = useCallback(
-    (prefill?: string): void => {
-      markShellUsed();
-      setQuery(prefill ?? "");
-      setSelected(0);
-      setShellOpen(true);
-    },
-    [markShellUsed],
-  );
-
   const collapseAll = useCallback((): void => {
-    setShellOpen(false);
+    closeNativeOverlay("escape");
     setKeymap(false);
-    setQuery("");
     setRailOpen(false);
     setPanels((p) => ({ ...p, runtimeOpen: false, contextOpen: false }));
-    void window.browser.command({ type: "focus.page" });
-  }, []);
+  }, [closeNativeOverlay]);
+
+  // The main process is deliberately only a view/layout executor. The Shell
+  // remains the single source of truth for the overlay model and its session.
+  useEffect(() => {
+    if (overlayModel) window.browser.addressOverlay.update(overlayModel);
+    else window.browser.addressOverlay.close();
+  }, [overlayModel]);
+
+  useEffect(() => {
+    if (overlayModel && active?.id !== overlayModel.tabId)
+      closeNativeOverlay("tab-change");
+  }, [active?.id, closeNativeOverlay, overlayModel]);
+
+  useEffect(() => {
+    if (overlayModel && (keymap || dragging !== null || Boolean(approval?.irreversible)))
+      closeNativeOverlay("modal");
+  }, [approval?.irreversible, closeNativeOverlay, dragging, keymap, overlayModel]);
 
   const openRuntime = useCallback(
     (tab?: RuntimeTab): void =>
@@ -278,19 +326,62 @@ export function App(): React.JSX.Element {
           [event.state.tabId]: event.state,
         }));
     });
+    const offOverlay = window.browser.addressOverlay.subscribe((event) => {
+      if (event.type === "enter") {
+        if (overlayCloseTimer.current) {
+          clearTimeout(overlayCloseTimer.current);
+          overlayCloseTimer.current = null;
+        }
+      } else if (event.type === "leave") {
+        if (overlayModelRef.current?.mode === "preview" && !overlayCloseTimer.current) {
+          overlayCloseTimer.current = setTimeout(() => closeNativeOverlay("outside"), 180);
+        }
+      } else if (event.type === "edit") {
+        setOverlayModel((current) => {
+          if (!current || current.sessionId !== event.sessionId) return current;
+          const next = { ...current, mode: "edit" as const, motion: "opening" as const, seedRevision: current.seedRevision + 1 };
+          setOverlayPlacement((placement) => placement && placement.sessionId === event.sessionId
+            ? { ...placement, rect: { ...placement.rect, height: 420 }, visible: true, focusRequest: placement.focusRequest + 1 }
+            : placement);
+          markShellUsed();
+          return next;
+        });
+      } else if (event.type === "settled") {
+        setOverlayModel((current) => current?.sessionId === event.sessionId ? { ...current, motion: "settled" } : current);
+      } else if (event.type === "resize") {
+        setOverlayPlacement((placement) => placement && placement.sessionId === event.sessionId
+          ? { ...placement, rect: { ...placement.rect, height: Math.max(1, Math.min(420, event.height)) } }
+          : placement);
+      } else if (event.type === "action") {
+        if (event.action === "navigate") {
+          const tab = activeRef.current;
+          if (tab) void run_({ type: "navigation.goto", tabId: tab.id, url: event.payload });
+        } else if (event.action === "search") {
+          const tab = activeRef.current;
+          if (tab) void run_({ type: "navigation.goto", tabId: tab.id, url: `https://duckduckgo.com/?q=${encodeURIComponent(event.payload)}` });
+        } else if (event.action === "command") {
+          const command = shellCommands.find((candidate) => candidate.id === event.payload);
+          command?.run();
+        } else setNotice(`${event.payload} is not wired up yet`);
+        window.browser.addressOverlay.close(event.sessionId, "submit");
+      } else if (event.type === "dismiss") {
+        overlaySession.current = null;
+        setOverlayPlacement(undefined);
+        setOverlayModel(null);
+        if (event.reason === "escape" || event.reason === "submit")
+          void run_({ type: "focus.page" });
+      }
+    });
 
     const offUi = window.browser.onUi((signal) => {
       dismissFirstRun();
-      if (signal === "shell-with-url") openShell(activeRef.current?.url ?? "");
-      else if (signal === "toggle-shell")
-        setShellOpen((open) => {
-          if (open) {
-            setQuery("");
-            return false;
-          }
-          markShellUsed();
-          return true;
-        });
+      if (signal === "shell-with-url") {
+        markShellUsed();
+        openNativeOverlay("edit", activeRef.current?.url ?? "");
+      } else if (signal === "toggle-shell") {
+        markShellUsed();
+        openNativeOverlay("command", "");
+      }
       else if (signal === "toggle-sidebar") setRailOpen((v) => !v);
       else if (signal === "toggle-split") setSplit((v) => !v);
       else if (signal === "toggle-runtime")
@@ -304,18 +395,19 @@ export function App(): React.JSX.Element {
       else if (signal === "toggle-keymap") setKeymap((v) => !v);
       else if (signal === "new-task") newTask();
       else if (signal === "collapse-overlays") {
-        setShellOpen(false);
+        closeNativeOverlay("escape");
         setKeymap(false);
       }
     });
 
     return () => {
       offEvents();
+      offOverlay();
       offUi();
     };
     // `run` is read for the ⌘J landing tab; re-binding on it is cheap and keeps
     // the closure honest.
-  }, [dismissFirstRun, openShell, markShellUsed, run]);
+  }, [dismissFirstRun, openNativeOverlay, markShellUsed, run, closeNativeOverlay]);
 
   // Keys the Shell itself owns while it has focus.
   useEffect(() => {
@@ -324,15 +416,14 @@ export function App(): React.JSX.Element {
       if (event.key !== "Escape") return;
       // Escape closes the modal layer first; only a second one puts the docked
       // panels away, so it never destroys more than the user aimed at.
-      if (shellOpen || keymap) {
-        setShellOpen(false);
+      if (keymap) {
         setKeymap(false);
         focusPage();
       } else collapseAll();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [collapseAll, firstRun, shellOpen, keymap]);
+  }, [collapseAll, firstRun, keymap]);
 
   const paneOrder = useMemo(
     () => [active?.id, secondary?.id].filter((id): id is string => Boolean(id)),
@@ -364,9 +455,6 @@ export function App(): React.JSX.Element {
   );
 
   const groups = useMemo(() => groupTabs(workspace, tabs), [workspace, tabs]);
-  const currentGroup =
-    groups.find((group) => group.current) ?? groups[0] ?? null;
-
   const newTask = useCallback((): void => {
     setWorkspace((current) => {
       const next = createTask(current, `Task ${current.tasks.length + 1}`);
@@ -401,16 +489,19 @@ export function App(): React.JSX.Element {
   const shellCommands = useMemo(
     () => [
       {
+        id: "command:new-tab",
         name: "New Tab",
         hint: "command · ⌘T",
         run: () => void run_({ type: "tab.create" }),
       },
       {
+        id: "command:new-task",
         name: "New Task",
         hint: "command · ⌘⇧T",
         run: () => newTask(),
       },
       {
+        id: "command:close-tab",
         name: "Close Tab",
         hint: "command · ⌘W",
         run: () =>
@@ -418,6 +509,7 @@ export function App(): React.JSX.Element {
           void run_({ type: "tab.close", tabId: activeRef.current.id }),
       },
       {
+        id: "command:reload",
         name: "Reload",
         hint: "command · ⌘R",
         run: () =>
@@ -425,32 +517,38 @@ export function App(): React.JSX.Element {
           void run_({ type: "navigation.reload", tabId: activeRef.current.id }),
       },
       {
+        id: "command:runtime",
         name: runtimeOpen ? "Hide Runtime Panel" : "Show Runtime Panel",
         hint: "command · ⌘J",
         run: () => setPanels((p) => ({ ...p, runtimeOpen: !p.runtimeOpen })),
       },
       {
+        id: "command:context",
         name: contextOpen ? "Hide Context Panel" : "Show Context Panel",
         hint: "command · ⌘I",
         run: () => setPanels((p) => ({ ...p, contextOpen: !p.contextOpen })),
       },
       {
+        id: "command:sidebar",
         name: railOpen ? "Hide Workspace Rail" : "Show Workspace Rail",
         hint: "command · ⌘B",
         run: () => setRailOpen((v) => !v),
       },
       {
+        id: "command:split",
         name: split ? "Exit Split View" : "Split Right",
         hint: "command · ⌘\\",
         run: () => setSplit((v) => !v),
       },
       {
+        id: "command:keymap",
         name: "Keyboard Shortcuts",
         hint: "command · ⌘/",
         run: () => setKeymap(true),
       },
-      { name: "Collapse All", hint: "command · ESC", run: collapseAll },
+      { id: "command:collapse", name: "Collapse All", hint: "command · ESC", run: collapseAll },
       {
+        id: "command:discard-tab",
         name: "Discard Background Tab",
         hint: "command",
         run: () => {
@@ -459,6 +557,7 @@ export function App(): React.JSX.Element {
         },
       },
       {
+        id: "command:devtools",
         name: "Toggle Native DevTools",
         hint: "command · takes the CDP target",
         run: () =>
@@ -469,18 +568,21 @@ export function App(): React.JSX.Element {
         ? []
         : [
             {
+              id: "command:minimize",
               name: "Minimize Window",
               hint: "command",
               run: () =>
                 void run_({ type: "window.action", action: "minimize" as const }),
             },
             {
+              id: "command:maximize",
               name: "Maximize / Restore Window",
               hint: "command",
               run: () =>
                 void run_({ type: "window.action", action: "maximize" as const }),
             },
             {
+              id: "command:close-window",
               name: "Close Window",
               hint: "command",
               run: () =>
@@ -491,52 +593,45 @@ export function App(): React.JSX.Element {
     [runtimeOpen, contextOpen, railOpen, split, tabs, collapseAll, newTask],
   );
 
-  const shellContext = useMemo(
-    () => ({
-      activeUrl: active?.url ?? "",
-      tabCount: currentGroup?.tabs.length ?? tabs.length,
-      taskName: currentGroup?.task.name ?? "this task",
-      navigate: (url: string) => {
-        if (!activeRef.current) return void run_({ type: "tab.create", url });
-        void run_({
-          type: "navigation.goto",
-          tabId: activeRef.current.id,
-          url,
-        });
-      },
-      search: (terms: string) => {
-        const url = `https://duckduckgo.com/?q=${encodeURIComponent(terms)}`;
-        if (!activeRef.current) return void run_({ type: "tab.create", url });
-        void run_({
-          type: "navigation.goto",
-          tabId: activeRef.current.id,
-          url,
-        });
-      },
-      unwired,
-      commands: shellCommands,
-    }),
-    [active?.url, currentGroup, tabs.length, shellCommands],
-  );
+  overlayCommands.current = shellCommands.map((c) => ({ id: c.id, name: c.name, hint: c.hint }));
 
   // Modal surfaces raise the Shell above the page views, and so does a drag:
   // pages are native and would otherwise swallow every pointermove the drag
   // depends on. Everything else stays docked precisely so the page keeps input.
   const raised =
-    shellOpen || keymap || dragging !== null || Boolean(approval?.irreversible);
+    keymap || dragging !== null || Boolean(approval?.irreversible);
 
   return (
-    <LayoutProvider order={paneOrder} shellOnTop={raised}>
-      <div className={dragging ? `shell dragging-${dragging}` : "shell"}>
+    <LayoutProvider order={paneOrder} shellOnTop={raised} addressOverlay={overlayPlacement}>
+      <div
+        className={dragging ? `shell dragging-${dragging}` : "shell"}
+        style={{ "--page-tint": tint.background } as React.CSSProperties}
+      >
         {/* The strip spans the whole window and the rail hangs below it. The
             traffic lights are drawn by the OS at the window's top-left corner,
             so whatever occupies that corner has to yield -- putting the rail
             there instead meant its header sat underneath them. */}
         <div
           className={`chrome-top scheme-${tint.scheme}`}
-          style={{ height: topHeight }}
+          style={{ height: topHeight, backgroundColor: tint.background }}
         >
-          <div className="top-rail-zone" style={{ width: railWidth }} />
+          <div className="top-rail-zone" style={{ width: railWidth, backgroundColor: tint.background }} />
+
+          <AddressLabel
+            url={active?.url ?? ""}
+            onOpen={() => {
+              markShellUsed();
+              openNativeOverlay("edit", activeRef.current?.url ?? "");
+            }}
+            onPreview={(url) => {
+              if (url) openNativeOverlay("preview", url);
+              else {
+                if (overlayModelRef.current?.mode !== "preview") return;
+                if (overlayCloseTimer.current) clearTimeout(overlayCloseTimer.current);
+                overlayCloseTimer.current = setTimeout(() => closeNativeOverlay("outside"), 180);
+              }
+            }}
+          />
 
           <div
             className="top-page-zone"
@@ -547,10 +642,6 @@ export function App(): React.JSX.Element {
               paddingLeft: Math.max(0, platform.trafficLightInset - railWidth),
             }}
           >
-            <AddressLabel
-              url={active?.url ?? ""}
-              onOpen={() => openShell(activeRef.current?.url ?? "")}
-            />
             <Presence
               run={run}
               approvals={approval ? 1 : 0}
@@ -664,17 +755,6 @@ export function App(): React.JSX.Element {
         )}
 
         {notice && <Toast message={notice} />}
-
-        {shellOpen && (
-          <UniversalShell
-            query={query}
-            onQuery={setQuery}
-            selected={selected}
-            onSelected={setSelected}
-            onClose={closeShell}
-            context={shellContext}
-          />
-        )}
 
         {keymap && <ShortcutMap onClose={() => setKeymap(false)} />}
       </div>

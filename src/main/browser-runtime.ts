@@ -47,8 +47,8 @@ export class BrowserRuntime {
       this.controller.shell.webContents.send("browser:ui", "collapse-overlays");
       return;
     }
-    // Every surface signal also pulls focus into the Shell, otherwise the key
-    // opens a panel the page still owns the keyboard for.
+    // Surface shortcuts normally pull focus into the Shell; the address
+    // overlay is the exception because it owns a separate native view.
     const surface: Record<string, UiSignal> = {
       l: "shell-with-url",
       k: "toggle-shell",
@@ -66,7 +66,9 @@ export class BrowserRuntime {
     const signal = surface[k];
     if (signal) {
       this.controller.shell.webContents.send("browser:ui", signal);
-      this.controller.focusShell();
+      // The address overlay is a separate native view. Cmd+L/Cmd+K must not
+      // steal focus back to the full Shell when it is already editing.
+      if (k !== "l" && k !== "k") this.controller.focusShell();
       return;
     }
     if (k === "t") this.command({ type: "tab.create" });

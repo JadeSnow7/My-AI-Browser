@@ -6,6 +6,7 @@ import {
   type LayoutSnapshot,
   type Rect,
 } from "../../shared/layout";
+type OverlayControllerLike = { view: Pick<WebContentsView, "webContents" | "setBounds" | "setVisible">; applyPlacement: (placement: LayoutSnapshot["addressOverlay"], revision: number, modal: boolean) => void };
 
 /**
  * Applies a Shell-authored {@link LayoutSnapshot} to the real views.
@@ -36,12 +37,14 @@ export class LayoutApplier {
       tabId: string;
       view: WebContentsView;
     }>,
+    private readonly overlay?: OverlayControllerLike,
   ) {}
 
   apply(next: LayoutSnapshot): void {
     if (next.revision < this.snapshot.revision) return;
     this.published = true;
     this.snapshot = next;
+    this.overlay?.applyPlacement(next.addressOverlay, next.revision, next.shellOnTop);
     this.flush();
   }
 
@@ -123,6 +126,14 @@ export class LayoutApplier {
       if (view.webContents.isDestroyed()) continue;
       this.window.contentView.removeChildView(view);
       this.window.contentView.addChildView(view);
+    }
+    // The address surface is a separate native view and must remain above both
+    // page views and the Shell. Its visibility is independently gated by the
+    // controller, so this only changes z-order when a snapshot says it exists.
+    const overlayView = this.overlay?.view;
+    if (overlayView && this.snapshot.addressOverlay?.visible && !overlayView.webContents.isDestroyed()) {
+      this.window.contentView.removeChildView(overlayView as WebContentsView);
+      this.window.contentView.addChildView(overlayView as WebContentsView);
     }
   }
 }
