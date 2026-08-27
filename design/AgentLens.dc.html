@@ -1,0 +1,109 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      font-size: 13px;
+      color: #d8dbe2;
+    }
+    * { box-sizing: border-box; }
+    a { color: #7fb3e0; }
+    a:hover { color: #a8ccec; }
+  </style>
+</helmet>
+
+<div style="width: 720px; height: 640px; background: #0f1218; display: flex; flex-direction: column; overflow: hidden;">
+
+  <!-- lens chrome, in app tokens -->
+  <div style="flex: 0 0 auto; display: flex; align-items: center; gap: 10px; height: 32px; padding: 0 12px; background: #13151b; border-bottom: 1px solid #2b2f38;">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#4c8ed9" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="3.5" y="4.5" width="17" height="15" rx="2.5"></rect>
+      <path d="M3.5 9.5h17"></path>
+      <path d="M9.5 9.5v10"></path>
+    </svg>
+    <span style="font-size: 11px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; color: #7e8797;">Agent Lens</span>
+    <span style="flex: 1 1 auto;"></span>
+    <span style="padding: 2px 7px; border: 1px solid #343a46; border-radius: 4px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; color: #626c7d;">esc 退出</span>
+  </div>
+
+  <!-- the page, light as most pages are, with the overlay anchored over it -->
+  <div style="flex: 1 1 auto; position: relative; background: #f4f5f7; overflow: hidden;">
+
+    <!-- page content, muted: the lens is the subject, not the article -->
+    <div style="position: absolute; inset: 0; padding: 0;">
+      <div style="height: 58px; background: #ffffff; border-bottom: 1px solid #e3e5e9;"></div>
+      <div style="position: absolute; left: 24px; top: 17px; width: 92px; height: 24px; border-radius: 5px; background: #d3d7de;"></div>
+      <div style="position: absolute; left: 140px; top: 25px; width: 46px; height: 8px; border-radius: 3px; background: #dcdfe4;"></div>
+      <div style="position: absolute; left: 202px; top: 25px; width: 54px; height: 8px; border-radius: 3px; background: #dcdfe4;"></div>
+      <div style="position: absolute; left: 272px; top: 25px; width: 40px; height: 8px; border-radius: 3px; background: #dcdfe4;"></div>
+      <div style="position: absolute; left: 470px; top: 15px; width: 226px; height: 28px; border-radius: 6px; background: #eceef1; border: 1px solid #dcdfe4;"></div>
+
+      <div style="position: absolute; left: 24px; top: 96px; width: 420px; height: 26px; border-radius: 4px; background: #c9ced7;"></div>
+      <div style="position: absolute; left: 24px; top: 136px; width: 168px; height: 9px; border-radius: 3px; background: #dcdfe4;"></div>
+      <div style="position: absolute; left: 24px; top: 172px; width: 420px; height: 9px; border-radius: 3px; background: #e2e5e9;"></div>
+      <div style="position: absolute; left: 24px; top: 192px; width: 420px; height: 9px; border-radius: 3px; background: #e2e5e9;"></div>
+      <div style="position: absolute; left: 24px; top: 212px; width: 356px; height: 9px; border-radius: 3px; background: #e2e5e9;"></div>
+      <div style="position: absolute; left: 24px; top: 248px; width: 420px; height: 9px; border-radius: 3px; background: #e2e5e9;"></div>
+      <div style="position: absolute; left: 24px; top: 268px; width: 392px; height: 9px; border-radius: 3px; background: #e2e5e9;"></div>
+      <div style="position: absolute; left: 24px; top: 306px; width: 96px; height: 10px; border-radius: 3px; background: #cdd2da;"></div>
+
+      <div style="position: absolute; left: 496px; top: 96px; width: 200px; height: 168px; border-radius: 8px; background: #ffffff; border: 1px solid #e3e5e9;"></div>
+      <div style="position: absolute; left: 516px; top: 118px; width: 132px; height: 10px; border-radius: 3px; background: #cdd2da;"></div>
+      <div style="position: absolute; left: 516px; top: 144px; width: 160px; height: 8px; border-radius: 3px; background: #e2e5e9;"></div>
+      <div style="position: absolute; left: 516px; top: 162px; width: 128px; height: 8px; border-radius: 3px; background: #e2e5e9;"></div>
+      <div style="position: absolute; left: 516px; top: 196px; width: 160px; height: 32px; border-radius: 6px; background: #d3d7de;"></div>
+
+      <div style="position: absolute; left: 0; right: 0; top: 420px; height: 1px; background: #e3e5e9;"></div>
+      <div style="position: absolute; left: 24px; top: 448px; width: 120px; height: 8px; border-radius: 3px; background: #dcdfe4;"></div>
+      <div style="position: absolute; left: 172px; top: 448px; width: 92px; height: 8px; border-radius: 3px; background: #dcdfe4;"></div>
+    </div>
+
+    <!-- overlay: outlines only, never fills, so the page stays readable underneath.
+         Hues are the app's #4c8ed9 / #e5c07b darkened for a light background. -->
+
+    <div style="position: absolute; left: 20px; top: 13px; width: 100px; height: 32px; border: 2px solid #2f6fb8; border-radius: 6px;"></div>
+    <div style="position: absolute; left: 20px; top: 49px; padding: 2px 6px; border-radius: 4px; background: #2f6fb8; color: #ffffff; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; line-height: 1.35; white-space: nowrap;">1 link · Logo</div>
+
+    <div style="position: absolute; left: 466px; top: 11px; width: 234px; height: 36px; border: 2px solid #2f6fb8; border-radius: 6px;"></div>
+    <div style="position: absolute; left: 466px; top: 51px; padding: 2px 6px; border-radius: 4px; background: #2f6fb8; color: #ffffff; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; line-height: 1.35; white-space: nowrap;">2 textbox · Search</div>
+
+    <div style="position: absolute; left: 18px; top: 88px; width: 434px; height: 42px; border: 2px solid #8f6410; border-radius: 6px;"></div>
+    <div style="position: absolute; left: 18px; top: 67px; padding: 2px 6px; border-radius: 4px; background: #8f6410; color: #ffffff; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; line-height: 1.35; white-space: nowrap;">3 heading h1 · Article Title</div>
+
+    <div style="position: absolute; left: 18px; top: 298px; width: 112px; height: 26px; border: 2px solid #2f6fb8; border-radius: 6px;"></div>
+    <div style="position: absolute; left: 18px; top: 277px; padding: 2px 6px; border-radius: 4px; background: #2f6fb8; color: #ffffff; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; line-height: 1.35; white-space: nowrap;">4 link · Read more</div>
+
+    <div style="position: absolute; left: 512px; top: 192px; width: 168px; height: 40px; border: 2px solid #2f6fb8; border-radius: 6px;"></div>
+    <div style="position: absolute; left: 512px; top: 171px; padding: 2px 6px; border-radius: 4px; background: #2f6fb8; color: #ffffff; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; line-height: 1.35; white-space: nowrap;">5 button · Subscribe</div>
+
+    <div style="position: absolute; left: 8px; top: 428px; width: 704px; height: 56px; border: 2px dashed #8f6410; border-radius: 6px;"></div>
+    <div style="position: absolute; left: 8px; top: 407px; padding: 2px 6px; border-radius: 4px; background: #8f6410; color: #ffffff; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; line-height: 1.35; white-space: nowrap;">6 contentinfo · 页脚</div>
+  </div>
+
+  <!-- the number IS the agent's address for that node: what the log says, the user can point at -->
+  <div style="flex: 0 0 auto; display: flex; align-items: center; gap: 12px; height: 44px; padding: 0 12px; background: #171a21; border-top: 1px solid #2b2f38;">
+    <span style="display: flex; align-items: center; gap: 7px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; color: #d8dbe2;">
+      <span style="color: #98c379;">agent</span>
+      <span style="color: #626c7d;">→</span>
+      <span>click</span>
+      <span style="padding: 1px 6px; border-radius: 4px; background: #2f6fb8; color: #ffffff;">2</span>
+    </span>
+    <span style="flex: 1 1 auto;"></span>
+    <span style="display: flex; align-items: center; gap: 12px; font-size: 11px; color: #626c7d;">
+      <span style="display: inline-flex; align-items: center; gap: 5px;"><span style="width: 9px; height: 9px; border: 2px solid #2f6fb8; border-radius: 2px; display: inline-block;"></span>可交互</span>
+      <span style="display: inline-flex; align-items: center; gap: 5px;"><span style="width: 9px; height: 9px; border: 2px dashed #8f6410; border-radius: 2px; display: inline-block;"></span>语义地标</span>
+      <span>仅来自无障碍树,不标注布局 div</span>
+    </span>
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

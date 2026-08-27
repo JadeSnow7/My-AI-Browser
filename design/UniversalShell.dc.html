@@ -1,0 +1,123 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      font-size: 13px;
+      color: #d8dbe2;
+    }
+    * { box-sizing: border-box; }
+    a { color: #7fb3e0; }
+    a:hover { color: #a8ccec; }
+  </style>
+</helmet>
+
+<div style="width: 620px; height: 560px; background: #0f1218; padding: 24px; display: flex; flex-direction: column;">
+
+  <div style="background: #1a1d25; border: 1px solid #414958; border-radius: 8px; box-shadow: 0 18px 60px #000b; overflow: hidden; display: flex; flex-direction: column;">
+
+    <!-- input -->
+    <div style="display: flex; align-items: center; gap: 10px; height: 44px; padding: 0 14px; border-bottom: 1px solid #2b2f38;">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#626c7d" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+        <path d="m8 8 4 4-4 4"></path>
+        <path d="M14 16h4"></path>
+      </svg>
+      <span style="flex: 1 1 auto; font-size: 14px; color: #ffffff;">browser agent design<span style="color: #4c8ed9;">|</span></span>
+      <span style="flex: 0 0 auto; padding: 2px 7px; border: 1px solid #343a46; border-radius: 4px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; color: #626c7d;">⌘K</span>
+    </div>
+
+    <!-- results: group order is FIXED, never re-ranked, so muscle memory survives -->
+    <div style="padding: 6px; display: flex; flex-direction: column;">
+
+      <div style="padding: 8px 10px 5px; font-size: 11px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; color: #626c7d;">直达</div>
+      <button style="display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 10px; border: 0; border-radius: 5px; background: #2b313c; color: #ffffff; font-size: 13px; text-align: left; cursor: pointer;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7fb3e0" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="flex: 0 0 auto;">
+          <circle cx="12" cy="12" r="9"></circle>
+          <path d="M3.5 9h17M3.5 15h17"></path>
+          <path d="M12 3a15 15 0 0 1 0 18a15 15 0 0 1 0-18Z"></path>
+        </svg>
+        <span style="flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">github.com/openai/openai-cookbook</span>
+        <span style="flex: 0 0 auto; font-size: 11px; color: #7e8797;">打开</span>
+      </button>
+
+      <div style="padding: 12px 10px 5px; font-size: 11px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; color: #626c7d;">搜索</div>
+      <button style="display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 10px; border: 0; border-radius: 5px; background: transparent; color: #c8ccd4; font-size: 13px; text-align: left; cursor: pointer;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7e8797" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="flex: 0 0 auto;">
+          <circle cx="11" cy="11" r="6.5"></circle>
+          <path d="m16 16 4 4"></path>
+        </svg>
+        <span style="flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">搜索 “browser agent design”</span>
+        <span style="flex: 0 0 auto; font-size: 11px; color: #7e8797;">Google</span>
+      </button>
+      <button style="display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 10px; border: 0; border-radius: 5px; background: transparent; color: #c8ccd4; font-size: 13px; text-align: left; cursor: pointer;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7e8797" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="flex: 0 0 auto;">
+          <rect x="4" y="4" width="16" height="16" rx="2.5"></rect>
+          <path d="M8 9.5h8M8 14h5"></path>
+        </svg>
+        <span style="flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">在本页查找</span>
+        <span style="flex: 0 0 auto; font-size: 11px; color: #7e8797;">当前标签页</span>
+      </button>
+
+      <div style="padding: 12px 10px 5px; font-size: 11px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; color: #626c7d;">询问 Agent</div>
+      <button style="display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 10px; border: 0; border-radius: 5px; background: transparent; color: #c8ccd4; font-size: 13px; text-align: left; cursor: pointer;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#98c379" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="flex: 0 0 auto;">
+          <path d="M12 3.5c.9 3.6 2 4.7 5.6 5.6-3.6.9-4.7 2-5.6 5.6-.9-3.6-2-4.7-5.6-5.6 3.6-.9 4.7-2 5.6-5.6Z"></path>
+          <path d="M17.5 15.5c.4 1.6.9 2.1 2.5 2.5-1.6.4-2.1.9-2.5 2.5-.4-1.6-.9-2.1-2.5-2.5 1.6-.4 2.1-.9 2.5-2.5Z"></path>
+        </svg>
+        <span style="flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">总结这个页面的主要内容</span>
+        <span style="flex: 0 0 auto; font-size: 11px; color: #7e8797;">当前页</span>
+      </button>
+      <button style="display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 10px; border: 0; border-radius: 5px; background: transparent; color: #c8ccd4; font-size: 13px; text-align: left; cursor: pointer;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#98c379" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="flex: 0 0 auto;">
+          <circle cx="12" cy="12" r="4"></circle>
+          <path d="M16 12v1.8a2.7 2.7 0 0 0 5.4 0V12a9.4 9.4 0 1 0-3.7 7.5"></path>
+        </svg>
+        <span style="flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+          <span style="font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: #98c379;">@page</span>
+          找出 API 接口
+        </span>
+        <span style="flex: 0 0 auto; font-size: 11px; color: #7e8797;">引用上下文</span>
+      </button>
+
+      <div style="padding: 12px 10px 5px; font-size: 11px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; color: #626c7d;">命令</div>
+      <button style="display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 10px; border: 0; border-radius: 5px; background: transparent; color: #c8ccd4; font-size: 13px; text-align: left; cursor: pointer;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7e8797" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="flex: 0 0 auto;">
+          <rect x="3.5" y="4.5" width="17" height="15" rx="2.5"></rect>
+          <path d="M12 4.5v15"></path>
+        </svg>
+        <span style="flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px;">/split right</span>
+        <span style="flex: 0 0 auto; font-size: 11px; color: #7e8797;">分屏</span>
+      </button>
+
+      <div style="padding: 12px 10px 5px; font-size: 11px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; color: #626c7d;">Shell</div>
+      <button style="display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 10px; border: 0; border-radius: 5px; background: transparent; color: #c8ccd4; font-size: 13px; text-align: left; cursor: pointer;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#e5c07b" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="flex: 0 0 auto;">
+          <path d="m6 8 4 4-4 4"></path>
+          <path d="M13 16h5"></path>
+        </svg>
+        <span style="flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px;">git status</span>
+        <span style="flex: 0 0 auto; font-size: 11px; color: #7e8797;">~/AI-Browser</span>
+      </button>
+    </div>
+
+    <!-- prefixes collapse the list to a single group, so the fixed order never gets long -->
+    <div style="display: flex; align-items: center; gap: 14px; height: 30px; padding: 0 14px; border-top: 1px solid #2b2f38; background: #13151b; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; color: #626c7d;">
+      <span><span style="color: #9aa2b1;">/</span> 命令</span>
+      <span><span style="color: #e5c07b;">&gt;</span> shell</span>
+      <span><span style="color: #98c379;">@</span> 引用</span>
+      <span style="flex: 1 1 auto;"></span>
+      <span>↑↓ 选择 · ⏎ 执行</span>
+    </div>
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

@@ -1,0 +1,1618 @@
+/*
+ * Shell styles.
+ *
+ * One palette, one type ramp, one spacing step for every surface -- the rail,
+ * the panels, the Universal Shell and the approval card used to each invent
+ * their own. Tokens below are the whole vocabulary; a value that is not here
+ * should not appear in a rule.
+ */
+
+:root {
+  /* surfaces */
+  --bg-chrome: #13151b; /* top strip, panel headers */
+  --bg-panel: #171a21; /* panel bodies, rail */
+  --bg-overlay: #1a1d25; /* anything that floats */
+  --bg-inset: #0f1218; /* quotes, payload blocks */
+  --bg-hints: #15181f; /* the Shell's footer strip */
+
+  /* text */
+  --text-strong: #ffffff;
+  --text: #d8dbe2;
+  --text-click: #c8ccd4;
+  --text-muted: #9aa2b1;
+  --text-dim: #7e8797;
+  --text-faint: #626c7d;
+  --text-disabled: #5c6474;
+  --text-weakest: #4a5262;
+
+  /* lines and states */
+  --line: #2b2f38;
+  --line-rail: #343945;
+  --line-overlay: #414958;
+  --state-hover: #2b313c;
+  --state-selected: #374254;
+  --state-active: #2f3744;
+  --state-current: #21262f;
+  --border-secondary: #555e6d;
+  --grip: #3a4252;
+
+  /* semantic */
+  --primary: #4c8ed9;
+  --primary-hover: #5d9ce2;
+  --link: #7fb3e0;
+  --agent: #98c379;
+  --agent-bg: #1d2620;
+  --warn: #e5c07b;
+  --warn-bg: #3a3320;
+  --danger: #e08b93;
+  --danger-bg: #3d2429;
+  --scrim: #06070a99;
+
+  --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  font:
+    13px -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+  color: var(--text);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/*
+ * The Shell view is always full-window and normally sits *below* the page
+ * views, so anything it paints outside a .view-slot is visible chrome and
+ * anything transparent lets the page underneath show through. Never give body
+ * an opaque background: when a modal raises the Shell above the pages, an
+ * opaque body would black the whole browser out.
+ */
+body {
+  margin: 0;
+  background: transparent;
+  color: var(--text);
+  overflow: hidden;
+}
+
+.shell {
+  display: flex;
+  width: 100vw;
+  height: 100vh;
+}
+
+button {
+  font: inherit;
+}
+
+/* --- top strip ----------------------------------------------------------- */
+
+.main {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.chrome-top {
+  position: relative;
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding-right: 12px;
+  background: var(--bg-chrome);
+}
+
+.drag-region {
+  position: absolute;
+  inset: 0;
+  -webkit-app-region: drag;
+}
+
+/*
+ * Presence. The rule that keeps this legible: an idle surface shows nothing.
+ * No zeroes, no grey placeholders -- anything here is actually happening.
+ */
+.presence {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  -webkit-app-region: no-drag;
+}
+
+.presence-pill {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  height: 20px;
+  padding: 0 7px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  font-family: var(--mono);
+  font-size: 10px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.presence-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+/* Modifiers are namespaced: a bare `.approval` here would collide with the
+ * approval card's own block, which owns a fixed-position rule. */
+.presence-pill.is-agent {
+  background: var(--agent-bg);
+  color: var(--agent);
+}
+
+.presence-pill.is-agent:hover {
+  background: #24312a;
+}
+
+.presence-pill.is-approval {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
+.presence-pill.is-approval:hover {
+  background: #4a2b31;
+}
+
+/* Errors are a count, not an alarm: no fill until you point at them. */
+.presence-pill.is-errors {
+  color: var(--text-dim);
+}
+
+.presence-pill.is-errors .presence-dot {
+  background: var(--warn);
+}
+
+.presence-pill.is-errors:hover {
+  background: var(--state-hover);
+  color: var(--text);
+}
+
+/*
+ * A 2px hairline along the bottom of the strip, present only while an agent is
+ * running. A permanent empty track would be one more thing to learn to ignore.
+ */
+.agent-progress {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  background: var(--agent-bg);
+}
+
+.agent-progress-fill {
+  height: 100%;
+  background: var(--agent);
+  transition: width 0.4s ease;
+}
+
+.session-badge {
+  position: relative;
+  z-index: 2;
+  flex: 0 0 auto;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  white-space: nowrap;
+  -webkit-app-region: no-drag;
+}
+
+.session-badge.suspended-devtools {
+  background: var(--warn-bg);
+  color: var(--warn);
+}
+
+.session-badge.reconnecting {
+  background: #23303f;
+  color: var(--link);
+}
+
+.session-badge.error {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
+.window-buttons {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  -webkit-app-region: no-drag;
+}
+
+.window-buttons button {
+  width: 28px;
+  height: 25px;
+  border: 0;
+  background: transparent;
+  color: #aeb5c2;
+  cursor: pointer;
+}
+
+.window-buttons button:hover {
+  background: #343a46;
+}
+
+.window-buttons button:last-child:hover {
+  background: #b33b46;
+  color: white;
+}
+
+/* --- workspace rail ------------------------------------------------------ */
+
+.rail {
+  position: relative;
+  flex: 0 0 auto;
+  height: 100%;
+  transition: width 0.18s ease;
+  -webkit-app-region: no-drag;
+}
+
+.rail-list {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 8px 8px 10px;
+  background: var(--bg-panel);
+  border-right: 1px solid var(--line-rail);
+  box-shadow: 8px 0 28px #0008;
+}
+
+.rail-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 10px 10px;
+  font-size: 10px;
+  font-family: var(--mono);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-faint);
+}
+
+.rail-key,
+.panel-key {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text-faint);
+}
+
+.rail-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.rail-task {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.task-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+}
+
+.task-row.current {
+  background: var(--state-current);
+}
+
+.task-row:hover {
+  background: var(--state-hover);
+}
+
+.task-dot {
+  flex: 0 0 auto;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--grip);
+}
+
+.task-dot.running {
+  background: var(--agent);
+}
+
+.task-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.task-row.current .task-name {
+  color: var(--text);
+}
+
+.task-count {
+  flex: 0 0 auto;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text-faint);
+}
+
+.task-count.running {
+  color: var(--agent);
+}
+
+/* The indent rule is the whole point of the two-level rail. */
+.task-tabs {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-left: 4px;
+  padding-left: 10px;
+  border-left: 1px solid var(--line);
+}
+
+.tab-row {
+  display: block;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-click);
+  text-align: left;
+  cursor: pointer;
+}
+
+.tab-row:hover {
+  background: var(--state-hover);
+}
+
+.tab-row.active {
+  background: var(--state-selected);
+  color: var(--text-strong);
+}
+
+/* Hibernated tabs stay in the list -- they are tabs, not closed windows. */
+.tab-row.discarded {
+  opacity: 0.55;
+}
+
+.tab-row b {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tab-row small {
+  display: block;
+  margin-top: 3px;
+  font-size: 10px;
+  color: var(--text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tab-row.active small {
+  color: var(--text-muted);
+}
+
+.rail-new {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  margin-top: 6px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.rail-new:hover {
+  background: var(--state-hover);
+  color: var(--text);
+}
+
+/* Degraded rail: navigation stays possible at a fifth of the width. */
+.rail-list.compact {
+  padding: 8px 6px 10px;
+  align-items: center;
+}
+
+.rail-list.compact .rail-scroll {
+  align-items: center;
+}
+
+.rail-list.compact .tab-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+}
+
+.rail-list.compact .rail-new {
+  justify-content: center;
+}
+
+.rail-initial {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* --- edge handles -------------------------------------------------------- */
+
+/*
+ * The only permanent chrome in the default state. They work only because the
+ * layout keeps 8px uncovered on each edge: a handle underneath a page view
+ * would never see a pointer event, since pages composite above the Shell.
+ */
+.edge {
+  position: fixed;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  -webkit-app-region: no-drag;
+}
+
+.edge-left {
+  left: 0;
+  bottom: 0;
+  width: 8px;
+}
+
+.edge-right {
+  right: 0;
+  bottom: 0;
+  width: 8px;
+}
+
+.edge-bottom {
+  left: 8px;
+  right: 8px;
+  bottom: 0;
+  height: 8px;
+}
+
+.edge-grip {
+  border-radius: 999px;
+  background: var(--grip);
+}
+
+.edge-left .edge-grip,
+.edge-right .edge-grip {
+  width: 3px;
+  height: 52px;
+}
+
+.edge-left .edge-grip {
+  margin-left: 2px;
+}
+
+.edge-right .edge-grip {
+  margin-right: 2px;
+}
+
+.edge-bottom .edge-grip {
+  width: 52px;
+  height: 3px;
+  margin-bottom: 2px;
+}
+
+/* The pointer teaches the keyboard: the label carries the shortcut. */
+.edge-label {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 26px;
+  padding: 0 10px;
+  border: 1px solid var(--line-overlay);
+  border-radius: 6px;
+  background: var(--bg-overlay);
+  box-shadow: 0 8px 24px #000a;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.edge-left .edge-label {
+  left: 14px;
+}
+
+.edge-right .edge-label {
+  right: 14px;
+}
+
+.edge-bottom .edge-label {
+  bottom: 14px;
+}
+
+.edge-label-name {
+  font-size: 12px;
+  color: var(--text);
+}
+
+.edge-label-key {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text-dim);
+}
+
+/* --- panes and panels ---------------------------------------------------- */
+
+.body {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.content {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+/* The gutter exists only while the panel that owns that edge is away. */
+.body.gutter-right {
+  padding-right: 8px;
+}
+
+.content.gutter-bottom {
+  padding-bottom: 8px;
+}
+
+.panes {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.panes.split {
+  gap: 1px;
+  background: var(--line);
+}
+
+/*
+ * A hole punched in the Shell. It paints nothing: the native WebContentsView is
+ * composited over exactly this rectangle, which the LayoutProvider measures.
+ */
+.view-slot {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 100%;
+}
+
+.panel-host {
+  position: relative;
+  flex: 0 0 auto;
+  min-width: 0;
+  min-height: 0;
+  background: var(--bg-panel);
+}
+
+/*
+ * Resize handles are absolutely positioned on the panel's leading edge so they
+ * take no layout space -- clampPanels can then treat the panel size as exact.
+ */
+.resizer {
+  position: absolute;
+  z-index: 6;
+  -webkit-app-region: no-drag;
+}
+
+.resizer-y {
+  top: -3px;
+  left: 0;
+  right: 0;
+  height: 7px;
+  cursor: row-resize;
+}
+
+.resizer-x {
+  top: 0;
+  bottom: 0;
+  left: -3px;
+  width: 7px;
+  cursor: col-resize;
+}
+
+.resizer:hover,
+.dragging-runtime .resizer-y,
+.dragging-context .resizer-x {
+  background: var(--primary);
+  opacity: 0.6;
+}
+
+.runtime-panel,
+.context-panel {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  background: var(--bg-panel);
+}
+
+.runtime-panel {
+  border-top: 1px solid var(--line);
+}
+
+.context-panel {
+  border-left: 1px solid var(--line);
+}
+
+.panel-tabs {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 2px;
+  height: 32px;
+  padding: 0 6px;
+  background: var(--bg-chrome);
+  border-bottom: 1px solid var(--line);
+}
+
+.panel-title {
+  padding: 0 6px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.panel-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-dim);
+  padding: 4px 9px;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.panel-tab:hover {
+  background: var(--state-hover);
+  color: var(--text);
+}
+
+.panel-tab.active {
+  background: var(--state-active);
+  color: var(--text-strong);
+}
+
+.panel-tab .tab-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--agent);
+}
+
+.panel-key {
+  margin-left: auto;
+  padding-right: 4px;
+}
+
+.panel-close {
+  width: 22px;
+  height: 22px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+
+.panel-close:hover {
+  background: #343a46;
+  color: var(--text);
+}
+
+.panel-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 14px 16px;
+  overflow: auto;
+}
+
+.panel-body.mono {
+  padding: 12px 16px;
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.65;
+}
+
+.panel-section {
+  margin: 0 0 8px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.panel-section:not(:first-child) {
+  margin-top: 20px;
+}
+
+/* Empty states name the source that will fill them, so "nothing here" reads
+ * as "not wired yet" rather than "broken". */
+.unwired-title {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.unwired-source {
+  margin: 6px 0 0;
+  color: var(--text-faint);
+  font-size: 11px;
+  font-family: var(--mono);
+  word-break: break-word;
+}
+
+/* --- runtime panel contents ---------------------------------------------- */
+
+.console-row {
+  display: flex;
+  gap: 10px;
+  padding: 3px 0;
+}
+
+.console-glyph {
+  flex: 0 0 14px;
+  color: var(--text-dim);
+}
+
+.console-row.warning .console-glyph {
+  color: var(--warn);
+}
+
+.console-row.error .console-glyph {
+  color: var(--danger);
+}
+
+.console-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--text);
+  word-break: break-word;
+}
+
+.console-row.info .console-text {
+  color: var(--text-dim);
+}
+
+.console-source {
+  flex: 0 0 auto;
+  color: var(--text-faint);
+}
+
+.net-table {
+  display: flex;
+  flex-direction: column;
+}
+
+.net-row {
+  display: flex;
+  gap: 10px;
+  padding: 2px 0;
+  color: var(--text-muted);
+}
+
+.net-head {
+  color: var(--text-faint);
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 4px;
+  margin-bottom: 4px;
+}
+
+.net-status {
+  flex: 0 0 44px;
+}
+
+.net-status.ok {
+  color: var(--agent);
+}
+
+.net-status.warn {
+  color: var(--warn);
+}
+
+.net-status.bad {
+  color: var(--danger);
+}
+
+.net-status.pending {
+  color: var(--text-faint);
+}
+
+.net-head .net-status {
+  color: var(--text-faint);
+}
+
+.net-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.net-size {
+  flex: 0 0 66px;
+  text-align: right;
+}
+
+.net-time {
+  flex: 0 0 56px;
+  text-align: right;
+}
+
+/* Agent log: shape before colour, so status survives monochrome. */
+.agent-row {
+  display: flex;
+  gap: 10px;
+  padding: 2px 0;
+}
+
+.agent-row.seam {
+  margin-top: 6px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+
+.agent-glyph {
+  flex: 0 0 14px;
+}
+
+.agent-row.done .agent-glyph,
+.agent-row.running .agent-glyph {
+  color: var(--agent);
+}
+
+.agent-row.pending .agent-glyph {
+  color: var(--text-faint);
+}
+
+.agent-row.failed .agent-glyph {
+  color: var(--danger);
+}
+
+.agent-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--text);
+}
+
+.agent-row.running .agent-text {
+  color: var(--text-strong);
+}
+
+.agent-row.pending .agent-text {
+  color: var(--text-dim);
+}
+
+/* The same ordinal Agent Lens draws on the page. */
+.agent-target {
+  color: var(--warn);
+}
+
+.agent-time {
+  flex: 0 0 auto;
+  color: var(--text-faint);
+}
+
+.agent-time.now {
+  color: var(--agent);
+}
+
+.agent-retry {
+  flex: 0 0 auto;
+  border: 0;
+  background: transparent;
+  color: var(--link);
+  font-family: var(--mono);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.rt-row {
+  display: flex;
+  gap: 10px;
+}
+
+.rt-key {
+  flex: 0 0 150px;
+  color: var(--text-faint);
+}
+
+.rt-value {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--text-muted);
+  word-break: break-word;
+}
+
+.rt-accent {
+  color: var(--link);
+}
+
+.rt-ok {
+  color: var(--agent);
+}
+
+/* --- context panel ------------------------------------------------------- */
+
+.selection-box {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--bg-inset);
+}
+
+.selection-quote {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text);
+}
+
+.selection-source {
+  margin: 8px 0 0;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
+.action-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 8px;
+}
+
+.action-list button {
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-click);
+  padding: 7px 10px;
+  text-align: left;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.action-list button:hover:not(:disabled) {
+  background: var(--state-hover);
+}
+
+.action-list button:disabled {
+  color: var(--text-disabled);
+  cursor: default;
+}
+
+/* --- universal shell ----------------------------------------------------- */
+
+.ushell {
+  position: fixed;
+  z-index: 8;
+  top: 62px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 620px;
+  background: var(--bg-overlay);
+  border: 1px solid var(--line-overlay);
+  border-radius: 8px;
+  box-shadow: 0 18px 60px #000b;
+  overflow: hidden;
+  -webkit-app-region: no-drag;
+}
+
+.ushell-input {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 46px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.ushell-input input {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-strong);
+  font-size: 14px;
+  outline: none;
+}
+
+.ushell-input input::placeholder {
+  color: var(--text-faint);
+}
+
+.ushell-key {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text-faint);
+}
+
+/*
+ * The intent chip. It is derived from the query on every keystroke, never
+ * stored, so what it says and what ⏎ does cannot drift apart.
+ */
+.intent-chip {
+  flex: 0 0 auto;
+  height: 22px;
+  padding: 0 8px;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 5px;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.intent-anything,
+.intent-go,
+.intent-ask {
+  background: #23303f;
+  color: var(--link);
+}
+
+.intent-search {
+  background: var(--state-hover);
+  color: var(--text-click);
+}
+
+.intent-command {
+  background: var(--warn-bg);
+  color: var(--warn);
+}
+
+.intent-shell {
+  background: var(--agent-bg);
+  color: var(--agent);
+}
+
+.ushell-results {
+  max-height: 340px;
+  overflow: auto;
+  padding: 6px 0;
+}
+
+.ushell-group {
+  margin: 0;
+  padding: 8px 14px 4px;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.ushell-group-prefix {
+  margin-left: 6px;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--text-weakest);
+}
+
+.ushell-row {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  width: 100%;
+  padding: 9px 14px;
+  border: 0;
+  background: transparent;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ushell-row.selected {
+  background: var(--state-hover);
+}
+
+.ushell-glyph {
+  flex: 0 0 14px;
+  color: var(--text-faint);
+}
+
+.ushell-row.selected .ushell-glyph {
+  color: var(--link);
+}
+
+.ushell-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--text-click);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ushell-row.selected .ushell-label {
+  color: var(--text-strong);
+}
+
+.seg-dim {
+  color: var(--text-faint);
+}
+
+.seg-mention {
+  color: var(--warn);
+}
+
+/*
+ * The right column says what will happen, not which key does it. A list of
+ * shortcuts teaches nothing about consequences, and this box can spend money.
+ */
+.ushell-consequence {
+  flex: 0 0 auto;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text-faint);
+}
+
+.ushell-row.selected .ushell-consequence {
+  color: var(--text-muted);
+}
+
+.ushell-consequence.acts {
+  color: var(--danger);
+}
+
+.ushell-empty {
+  margin: 0;
+  padding: 14px;
+  font-size: 12px;
+  color: var(--text-faint);
+}
+
+.ushell-hints {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 30px;
+  padding: 0 14px;
+  background: var(--bg-hints);
+  border-top: 1px solid var(--line);
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text-faint);
+}
+
+.ushell-hints b {
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+/* --- first-run card ------------------------------------------------------ */
+
+/*
+ * Docked, not modal. The Shell stays below the page views, so the page
+ * underneath is still live -- a modal card would have to raise the Shell and
+ * swallow every page click just to teach three shortcuts.
+ */
+.first-run {
+  position: fixed;
+  z-index: 7;
+  left: 20px;
+  bottom: 20px;
+  width: 316px;
+  padding: 14px 16px;
+  background: var(--bg-overlay);
+  border: 1px solid var(--line-overlay);
+  border-radius: 8px;
+  box-shadow: 0 18px 60px #000b;
+  -webkit-app-region: no-drag;
+}
+
+.first-run-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.first-run-head h2 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-strong);
+}
+
+.first-run-head button {
+  width: 22px;
+  height: 22px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+
+.first-run-head button:hover {
+  background: #343a46;
+  color: var(--text);
+}
+
+.first-run-row {
+  display: flex;
+  gap: 10px;
+  padding: 4px 0;
+}
+
+.first-run-key {
+  flex: 0 0 34px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--link);
+}
+
+.first-run-text {
+  flex: 1 1 auto;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-click);
+}
+
+.first-run-row.gesture {
+  align-items: center;
+  margin-top: 10px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.first-run-grip {
+  flex: 0 0 34px;
+  height: 3px;
+  border-radius: 999px;
+  background: var(--grip);
+}
+
+.first-run-row.gesture .first-run-text {
+  color: var(--text-dim);
+}
+
+.first-run-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 12px;
+}
+
+.first-run-hint {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text-faint);
+}
+
+button.secondary {
+  height: 26px;
+  padding: 0 11px;
+  border: 1px solid var(--border-secondary);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-click);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+button.secondary:hover {
+  background: var(--state-hover);
+}
+
+/* --- shortcut map -------------------------------------------------------- */
+
+.scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--scrim);
+  -webkit-app-region: no-drag;
+}
+
+.keymap {
+  width: 440px;
+  padding: 6px;
+  background: var(--bg-overlay);
+  border: 1px solid var(--line-overlay);
+  border-radius: 8px;
+  box-shadow: 0 24px 70px #000c;
+}
+
+.keymap-group {
+  margin: 0;
+  padding: 10px 12px 8px;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.keymap-row {
+  display: flex;
+  gap: 10px;
+  padding: 6px 12px;
+}
+
+.keymap-key {
+  flex: 0 0 52px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--link);
+}
+
+.keymap-name {
+  font-size: 13px;
+  color: var(--text);
+}
+
+.keymap-foot {
+  margin: 8px 0 0;
+  padding: 10px 12px;
+  border-top: 1px solid var(--line);
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-dim);
+}
+
+/* --- approval card ------------------------------------------------------- */
+
+/*
+ * Docked by default: it sits inside the page pane and leaves the page visible
+ * and clickable. Only irreversible actions get the scrim, because the modal
+ * variant raises the Shell and takes the page away -- a cost worth paying only
+ * where a wrong click cannot be undone.
+ */
+.approval {
+  position: fixed;
+  z-index: 7;
+  right: 14px;
+  bottom: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+  width: 372px;
+  padding: 14px;
+  background: var(--bg-overlay);
+  border: 1px solid var(--line-overlay);
+  border-radius: 8px;
+  box-shadow: 0 18px 60px #000b;
+  -webkit-app-region: no-drag;
+}
+
+.scrim .approval {
+  position: relative;
+  right: auto;
+  bottom: auto;
+  box-shadow: 0 24px 70px #000c;
+}
+
+.approval-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.approval-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--danger);
+}
+
+.approval-title {
+  flex: 1 1 auto;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.approval-pill {
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--danger-bg);
+  color: var(--danger);
+  font-size: 11px;
+}
+
+.approval-summary {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--text-strong);
+}
+
+.approval-summary code {
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--warn);
+}
+
+/* An approval that hides the payload is a habit, not a decision. */
+.approval-details {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--bg-inset);
+  font-family: var(--mono);
+  font-size: 11px;
+}
+
+.approval-detail {
+  display: flex;
+  gap: 10px;
+}
+
+.approval-key {
+  flex: 0 0 92px;
+  color: var(--text-faint);
+}
+
+.approval-value {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--text-muted);
+  word-break: break-all;
+}
+
+.approval-value.sensitive {
+  color: var(--warn);
+}
+
+.approval-origin {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
+.approval-task {
+  color: var(--link);
+}
+
+.approval-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.approval-actions .secondary {
+  height: 30px;
+  padding: 0 16px;
+}
+
+.approval-actions .primary {
+  flex: 1 1 auto;
+  height: 30px;
+  border: 0;
+  border-radius: 6px;
+  background: var(--primary);
+  color: #0d0f13;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.approval-actions .primary:hover {
+  background: var(--primary-hover);
+}
+
+.approval-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+/* The third choice: a standing grant, scoped to this site and this task. */
+.approval-always {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 11px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.approval-always:hover {
+  color: var(--text);
+}
+
+.approval-keys {
+  flex: 0 0 auto;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
+/* --- toast --------------------------------------------------------------- */
+
+/*
+ * Moved out of the top strip on purpose: a red badge in the chrome read as a
+ * persistent error, but a panel closing because the window got small is the
+ * layout working. It just has to be said out loud so the shortcut does not
+ * look broken.
+ */
+.toast {
+  position: fixed;
+  z-index: 7;
+  left: 50%;
+  bottom: 22px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 30px;
+  padding: 0 12px;
+  border: 1px solid var(--line-overlay);
+  border-radius: 999px;
+  background: var(--bg-overlay);
+  box-shadow: 0 10px 30px #000a;
+  font-size: 12px;
+  color: var(--text);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.toast-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--warn);
+}
