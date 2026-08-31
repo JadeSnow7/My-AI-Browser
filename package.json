@@ -2,6 +2,7 @@
   "name": "borderless-browser-shell",
   "version": "0.1.0",
   "productName": "Borderless Browser Shell Preview",
+  "description": "An unsigned preview build of the Borderless Browser Shell.",
   "private": true,
   "main": "dist/main/main.js",
   "scripts": {
