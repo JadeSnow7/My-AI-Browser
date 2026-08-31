@@ -1,0 +1,111 @@
+name: Package preview artifacts
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "New prerelease tag (must not already exist)"
+        required: true
+        default: v0.1.0-preview.1
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: package-preview
+  cancel-in-progress: false
+
+jobs:
+  make:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macOS arm64
+            runner: macos-15
+            platform: darwin
+            arch: arm64
+            artifact: borderless-browser-shell-preview-macos-arm64
+          - name: macOS x64
+            runner: macos-15-intel
+            platform: darwin
+            arch: x64
+            artifact: borderless-browser-shell-preview-macos-x64
+          - name: Windows x64
+            runner: windows-2025
+            platform: win32
+            arch: x64
+            artifact: borderless-browser-shell-preview-windows-x64
+          - name: Linux x64
+            runner: ubuntu-24.04
+            platform: linux
+            arch: x64
+            artifact: borderless-browser-shell-preview-linux-x64
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run test:release
+      - run: npm run make -- --platform=${{ matrix.platform }} --arch=${{ matrix.arch }}
+      - name: Verify maker outputs and checksums
+        run: node scripts/release/verify-artifacts.cjs --platform=${{ matrix.platform }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: out/make
+          if-no-files-found: error
+          retention-days: 14
+
+  release:
+    name: Create GitHub prerelease
+    needs: make
+    if: ${{ needs.make.result == 'success' }}
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: release-artifacts
+          pattern: borderless-browser-shell-preview-*
+          merge-multiple: false
+      - run: >-
+          node scripts/release/collect-release-assets.cjs
+          --input=release-artifacts
+          --output=release-assets
+          --expected-groups=borderless-browser-shell-preview-macos-arm64,borderless-browser-shell-preview-macos-x64,borderless-browser-shell-preview-windows-x64,borderless-browser-shell-preview-linux-x64
+        shell: bash
+      - name: Create prerelease without replacing an existing tag or release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-preview\.[0-9]+$ ]] || { echo "Invalid preview tag: $RELEASE_TAG" >&2; exit 1; }
+          if gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${RELEASE_TAG}" >/dev/null 2>&1; then
+            echo "Tag already exists: ${RELEASE_TAG}" >&2
+            exit 1
+          fi
+          if gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${RELEASE_TAG}" >/dev/null 2>&1; then
+            echo "Release already exists: ${RELEASE_TAG}" >&2
+            exit 1
+          fi
+          gh release create "$RELEASE_TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "$RELEASE_TAG" \
+            --notes "Automated unsigned cross-platform preview for ${GITHUB_SHA}." \
+            --draft \
+            --prerelease
+          gh release upload "$RELEASE_TAG" release-assets/* --repo "$GITHUB_REPOSITORY"
+          gh release edit "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --draft=false --prerelease

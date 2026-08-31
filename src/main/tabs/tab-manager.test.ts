@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { isMainDocumentNavigation } from "./tab-manager";
+import { isMainDocumentNavigation } from "./navigation";
 
 test("only top-level non-same-document navigation resets console", () => {
   assert.equal(isMainDocumentNavigation(false, true), true);

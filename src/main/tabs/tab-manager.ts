@@ -10,17 +10,12 @@ import {
   selectForHibernation,
   type HibernationConfig,
 } from "./hibernation";
+import { isMainDocumentNavigation } from "./navigation";
 
 const normalize = (raw: string): string => normalizeNavigationInput(raw);
 
 /** Best-effort scroll capture; a slow or hung page must not block a discard. */
 const SCROLL_CAPTURE_TIMEOUT_MS = 200;
-
-/** Only a new top-level document should reset the Runtime console. */
-export const isMainDocumentNavigation = (
-  isInPlace: boolean,
-  isMainFrame: boolean,
-): boolean => isMainFrame && !isInPlace;
 
 export class TabManager {
   private tabs = new Map<string, InternalBrowserTab>();

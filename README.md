@@ -142,6 +142,35 @@ npm run build
 npm run dev
 ```
 
+## Package preview artifacts
+
+This repository has a manually triggered packaging workflow (`Package preview
+artifacts`). Enter a new preview tag such as `v0.1.0-preview.1` in the
+workflow's `tag` input. It tests, builds, verifies, and uploads native preview
+artifacts for macOS arm64/x64, Windows x64, and Linux x64, then creates a
+GitHub prerelease only after all four makers succeed. Existing tags and
+releases are rejected; the new tag points to the workflow-triggered commit.
+Release assets are prefixed by platform artifact name and accompanied by one
+combined deterministic `SHA256SUMS.txt`.
+
+These are unsigned preview builds. The workflow does not use signing,
+notarization, registry publishing, or release secrets, and a successful
+workflow does not imply a branded production release or updater delivery.
+
+The local equivalents are:
+
+```bash
+npm run package # build and create an unpacked packaged app in out/
+npm run make    # build and create platform makers in out/make/
+```
+
+The package identity is intentionally `Borderless Browser Shell Preview`; it
+does not claim a delivered HUSH Browser product or branding. Before any public
+release, an Owner must choose and approve the final macOS bundle identifier,
+Windows application identity, Linux package identity, licensing, signing
+identities, and platform installation. Those final app IDs are deliberately
+not set by this preview configuration.
+
 ## Tests
 
 ```bash
