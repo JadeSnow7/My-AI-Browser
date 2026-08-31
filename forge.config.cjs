@@ -2,6 +2,7 @@
 module.exports = {
   packagerConfig: {
     asar: true,
+    executableName: "borderless-browser-shell",
     ignore: [
       /^\/(?:\.github|design|out|src)(?:\/|$)/,
       /^\/(?:\.claude|scripts)(?:\/|$)/,
